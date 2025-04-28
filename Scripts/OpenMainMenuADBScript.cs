@@ -1,0 +1,29 @@
+﻿using System;
+
+namespace Arunka.Scripts;
+
+
+/// <summary>
+/// Temp script for testing purpose, will be moved to <see  cref="ADBScriptBase">ADBScriptBase</see>
+/// </summary>
+/// <param name="adbConnector"></param>
+public class OpenMainMenuADBScript(ADBConnector adbConnector) : ADBScriptBase(adbConnector)
+{
+    string targetImage = @"D:\\Documents\\Git\\ADBTesting\button_image.png"; // Path to the image of the button you want to click
+
+    /// <summary>
+    /// Use Base methods to OpenMainMenu using image recognition
+    /// </summary>
+    public void OpenMainMenu()
+    {
+        try
+        {
+            TapButton(targetImage);
+        }
+        catch (Exception e)
+        {
+            // TODO implement Error window functionality to prompt those errors
+            Console.WriteLine(e);
+        }
+    }
+}
