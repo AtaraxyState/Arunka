@@ -1,4 +1,5 @@
 ﻿using System;
+using Arunka.Scripts.StaticClassEnum;
 
 namespace Arunka.Scripts;
 
@@ -18,7 +19,7 @@ public class OpenMainMenuADBScript(ADBConnector adbConnector) : ADBScriptBase(ad
     {
         try
         {
-            TapButton(targetImage);
+            TapButton(Enums.Buttons.Button.MainMenu);
         }
         catch (Exception e)
         {

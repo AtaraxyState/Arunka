@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using Arunka.Scripts.StaticClassEnum;
 using OpenCvSharp;
+using Button = Arunka.Scripts.StaticClassEnum.Enums.Buttons.Button;
 
 namespace Arunka.Scripts;
+
+
 
 /// <summary>
 /// Contains base implementation for ADBCommands (IE: FindAndTap, GetText, TapAt, ...)
@@ -27,15 +31,21 @@ public class ADBScriptBase(ADBConnector adbConnector)
     /// <summary>
     /// Tap center of image if found, throws NullRefException if no button found
     /// </summary>
-    internal void TapButton(string inputFilePath)
+    internal void TapButton(Button button, string customPath = "")
     {
         // Console.WriteLine("🔍 Checking connected devices...");
         // var devicesOutput = RunAdbCommand("devices");
         // Console.WriteLine(devicesOutput); // Log the connected devices after the screenshot and before the tap command
         
         adbConnector.CaptureScreenshot(_tempScreenshotFilePath);
+
+        string path = customPath;
+        if (button != Button.Custom)
+        {
+            path = Enums.Buttons.GetButton(button);
+        }
         
-        (int,int)? buttonLocation = FindButtonLocation(_tempScreenshotFilePath, inputFilePath);
+        (int,int)? buttonLocation = FindButtonLocation(_tempScreenshotFilePath, path);
         if (buttonLocation != null)
         {
             // Scale the coordinates based on the screen resolution
@@ -45,11 +55,29 @@ public class ADBScriptBase(ADBConnector adbConnector)
         else
         {
             Console.WriteLine("❌ Button not found.");
-            throw new NullReferenceException($"Button {inputFilePath} not found.");
+            throw new NullReferenceException($"Button {path} not found.");
+        }
+    }
+
+    internal bool SearchImage(string filePath)
+    {
+        adbConnector.CaptureScreenshot(_tempScreenshotFilePath);
+        
+        (int,int)? buttonLocation = FindButtonLocation(_tempScreenshotFilePath, filePath);
+        if (buttonLocation != null)
+        {
+            // Scale the coordinates based on the screen resolution
+            Console.WriteLine($"📍 SearchImage | Button found at ({buttonLocation.Value.Item1}, {buttonLocation.Value.Item2})...");
+            return true;
+        }
+        else
+        {
+            Console.WriteLine("❌ SearchImage | Button not found.");
+            return false;
         }
     }
     
-    private (int, int)? FindButtonLocation(string screenshotPath, string buttonImagePath)
+    internal (int, int)? FindButtonLocation(string screenshotPath, string buttonImagePath)
     {
         // Load the screenshot and the button image
         var screenMat = Cv2.ImRead(screenshotPath);
@@ -88,7 +116,7 @@ public class ADBScriptBase(ADBConnector adbConnector)
     /// </summary>
     /// <param name="coordinates"></param>
     /// <returns></returns>
-    (int, int) ScaleCoordinates((int x, int y) coordinates)
+    internal (int, int) ScaleCoordinates((int x, int y) coordinates)
     {
         // Get screen resolution via ADB command
         string resolutionOutput = adbConnector.RunAdbCommand($" -s {adbConnector.BluestacksDevice} shell wm size");
