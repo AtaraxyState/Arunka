@@ -4,7 +4,7 @@
         Width="400" Height="300"
         Title="Centered Button">
     <Grid>
-        <Button Content="Open Menu"
+        <Button Content="Repeat Battle"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Click="RepeatButtonOnClick"/>
