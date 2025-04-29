@@ -37,7 +37,7 @@ public partial class MainWindow : Window
         if (_repeatBattleState)
         {
             _connectorUsed = true;
-            _repeatBattlesAdbScript.StartRepeatBattles(Enums.ContentType.Custom);
+            _repeatBattlesAdbScript.StartRepeatBattles(Enums.ContentType.Custom, _buttonCoordsManager);
         }
         else
         {

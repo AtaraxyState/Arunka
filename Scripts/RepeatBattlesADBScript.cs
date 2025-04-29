@@ -9,14 +9,42 @@ public class RepeatBattlesADBScript(ADBConnector adbConnector) : ADBScriptBase(a
 {
     private bool _shouldRepeatBattle;
     private Thread _repeatBattleThread;
+    private ButtonCoordsManager _buttonCoords;
     
+    private ButtonCoordsManager.ButtonCoords _inventoryButtonCoords;
+    private ButtonCoordsManager.ButtonCoords _arrangeInventory;
+    private ButtonCoordsManager.ButtonCoords _simpleSelection;
+    private ButtonCoordsManager.ButtonCoords _sellButtonCoords;
+    private ButtonCoordsManager.ButtonCoords _confirmSellButtonCoords;
+    private ButtonCoordsManager.ButtonCoords _quitInventory;
+    private ButtonCoordsManager.ButtonCoords _confirmButton;
+    private ButtonCoordsManager.ButtonCoords _tryAgainButton;
+    private ButtonCoordsManager.ButtonCoords _selectTeamButton;
+    private ButtonCoordsManager.ButtonCoords _startButton;
+    private ButtonCoordsManager.ButtonCoords _selectLeifsButton;
+    private ButtonCoordsManager.ButtonCoords _selectSkystonesButton;
+    private ButtonCoordsManager.ButtonCoords _buyStamina;
     
-    public void StartRepeatBattles(Enums.ContentType contentType)
+    public void StartRepeatBattles(Enums.ContentType contentType, ButtonCoordsManager buttonCoords)
     {
         _shouldRepeatBattle = true;
+        _buttonCoords = buttonCoords;
+
+        _inventoryButtonCoords = _buttonCoords.GetButtonCoords.Find(x => x.Name == "Inventory.png");
+        _arrangeInventory = _buttonCoords.GetButtonCoords.Find(x => x.Name == "ArrangeInventory.png");
+        _simpleSelection = _buttonCoords.GetButtonCoords.Find(x => x.Name == "SimpleSelection.png");
+        _sellButtonCoords = _buttonCoords.GetButtonCoords.Find(x => x.Name == "Sell.png");
+        _confirmSellButtonCoords = _buttonCoords.GetButtonCoords.Find(x => x.Name == "ConfirmSell.png");
+        _quitInventory = _buttonCoords.GetButtonCoords.Find(x => x.Name == "QuitInventoryUsingMVP.png");
+        _confirmButton = _buttonCoords.GetButtonCoords.Find(x => x.Name == "ConfirmButton.png");
+        _tryAgainButton = _buttonCoords.GetButtonCoords.Find(x => x.Name == "TryAgain.png");
+        _selectTeamButton = _buttonCoords.GetButtonCoords.Find(x => x.Name == "SelectTeam.png");
+        _startButton = _buttonCoords.GetButtonCoords.Find(x => x.Name == "Start.png");
+        _selectLeifsButton = _buttonCoords.GetButtonCoords.Find(x => x.Name == "SelectLeifs.png");
+        _selectSkystonesButton = _buttonCoords.GetButtonCoords.Find(x => x.Name == "SelectSkystones.png");
+        _buyStamina = _buttonCoords.GetButtonCoords.Find(x => x.Name == "BuyStamina.png");
         
         // TODO : Goto content type
-        
         
         // Start repeatBattle loop
         _repeatBattleThread = new Thread(RepeatBattleLoop);
@@ -52,29 +80,55 @@ public class RepeatBattlesADBScript(ADBConnector adbConnector) : ADBScriptBase(a
 
     private void ClearSideStoryInventory()
     {
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//Inventory.png");
+        Console.WriteLine("Clearing Side Story Inventory");
+
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//ArrangeInventory.png");
+        TapAt(_inventoryButtonCoords.X, _inventoryButtonCoords.Y);
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//SimpleSelection.png");
+        TapAt(_arrangeInventory.X, _arrangeInventory.Y);
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//Sell.png");
+        TapAt(_simpleSelection.X, _simpleSelection.Y);
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/ConfirmSell.png");
+        TapAt(_sellButtonCoords.X, _sellButtonCoords.Y);
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//QuitInventoryUsingMVP.png");
+        TapAt(_confirmSellButtonCoords.X, _confirmSellButtonCoords.Y);
+        Thread.Sleep(GlobalVariables.ClickCooldown);
+        TapAt(_quitInventory.X, _quitInventory.Y);
     }
 
     private void RestartBattles()
     {
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//RepeatBattle.png");
+        Console.WriteLine("Restarting Battles");
+        
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//TryAgain.png");
+        TapAt(_confirmButton.X, _confirmButton.Y);
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//TryAgain.png");
+        TapAt(_tryAgainButton.X, _tryAgainButton.Y);
+        Thread.Sleep(GlobalVariables.ClickCooldown * 2);
+        TapAt(_selectTeamButton.X, _selectTeamButton.Y);
         Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//SelectTeam.png");
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapButton(Enums.Buttons.Button.Custom, Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons//Start.png");
+        TapAt(_startButton.X, _startButton.Y);
+        
+        // Check success
+        var confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
+        if (confirm == null)
+        {
+            Thread.Sleep(GlobalVariables.ClickCooldown);
+            TapAt(_startButton.X, _startButton.Y);
+        }
+        
+        // If still null probably need to use leif or SkyStones
+        confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
+        if (confirm == null)
+        {
+            Thread.Sleep(GlobalVariables.ClickCooldown);
+            TapAt(_selectLeifsButton.X, _selectLeifsButton.Y);
+            Thread.Sleep(GlobalVariables.ClickCooldown);
+            TapAt(_buyStamina.X, _buyStamina.Y);
+            
+            // Retap
+            Thread.Sleep(GlobalVariables.ClickCooldown);
+            TapAt(_startButton.X, _startButton.Y);
+        }
     }
 }
