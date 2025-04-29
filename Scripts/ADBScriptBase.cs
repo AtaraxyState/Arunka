@@ -77,6 +77,27 @@ public class ADBScriptBase(ADBConnector adbConnector)
         }
     }
     
+    /// <summary>
+    /// Capture and return center of the corresponding image on the screen
+    /// </summary>
+    /// <param name="screenshotPath">Full screen shot</param>
+    /// <param name="buttonImagePath">Image to search</param>
+    /// <returns></returns>
+    internal (int, int)? GetButtonLocation(string buttonImagePath)
+    {
+        // Capture screen
+        adbConnector.CaptureScreenshot(_tempScreenshotFilePath);
+        
+        // return middle of button
+        return FindButtonLocation(_tempScreenshotFilePath, buttonImagePath);
+    }
+    
+    /// <summary>
+    /// Will return center of the corresponding image on the screen
+    /// </summary>
+    /// <param name="screenshotPath">Full screen shot</param>
+    /// <param name="buttonImagePath">Image to search</param>
+    /// <returns></returns>
     internal (int, int)? FindButtonLocation(string screenshotPath, string buttonImagePath)
     {
         // Load the screenshot and the button image
@@ -103,7 +124,7 @@ public class ADBScriptBase(ADBConnector adbConnector)
         // Only accept high-confidence matches
         if (maxVal >= 0.9)
         {
-            return (maxLoc.X, maxLoc.Y);
+            return (maxLoc.X + buttonTemplate.Width / 2, maxLoc.Y + buttonTemplate.Height / 2);
         }
 
         // Not found

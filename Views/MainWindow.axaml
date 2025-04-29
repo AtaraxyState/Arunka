@@ -7,6 +7,18 @@
         <Button Content="Open Menu"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
-                Click="OnButtonClick"/>
+                Click="RepeatButtonOnClick"/>
+        
+      
+            <StackPanel Margin="20" Spacing="10">
+                <TextBlock Text="Enter Image Name:"/>
+                <TextBox x:Name="ImageNameInput" Width="200"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Content="Update Position" Click="OnUpdateClick"/>
+                    <Button Content="Load JSON" Click="OnLoadClick"/>
+                    <Button Content="Save JSON" Click="OnSaveClick"/>
+                </StackPanel>
+            </StackPanel>
     </Grid>
 </Window>
