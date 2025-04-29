@@ -72,16 +72,59 @@ public class ButtonCoordsManager(ADBConnector adbConnector) : ADBScriptBase(adbC
     
     public void SaveToFile(string path)
     {
-        string json = JsonConvert.SerializeObject(_buttonCoords);
-        File.WriteAllText(path, json);
+        try
+        {
+            if (_buttonCoords == null || _buttonCoords.Count == 0)
+            {
+                Console.WriteLine("⚠️ No button coordinates to save.");
+                return;
+            }
+
+            string json = JsonConvert.SerializeObject(_buttonCoords);
+            File.WriteAllText(path, json);
+            Console.WriteLine($"✅ Saved {_buttonCoords.Count} button(s) to '{path}'.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error saving to file '{path}': {ex.Message}");
+        }
     }
-    
+
     public void LoadFromFile(string path)
     {
-        string json = File.ReadAllText(path);
+        try
+        {
+            if (!File.Exists(path))
+            {
+                Console.WriteLine($"⚠️ File not found: {path}");
+                return;
+            }
 
-        List<ButtonCoords>? buttonCoordsList = JsonConvert.DeserializeObject<List<ButtonCoords>>(json);
-        
-        _buttonCoords = buttonCoordsList ?? new List<ButtonCoords>();
+            string json = File.ReadAllText(path);
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                Console.WriteLine($"⚠️ File '{path}' is empty.");
+                return;
+            }
+
+            List<ButtonCoords>? buttonCoordsList = JsonConvert.DeserializeObject<List<ButtonCoords>>(json);
+
+            if (buttonCoordsList != null)
+            {
+                _buttonCoords = buttonCoordsList;
+                Console.WriteLine($"✅ Loaded {_buttonCoords.Count} button(s) from '{path}'.");
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ Failed to deserialize JSON from '{path}'.");
+                _buttonCoords = new List<ButtonCoords>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading from file '{path}': {ex.Message}");
+        }
     }
+
 }
