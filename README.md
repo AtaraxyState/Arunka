@@ -17,3 +17,6 @@ Possible features (study feasability)
  - Clean gears (using a config file with specific filters)
  - Chose content to spend stamina on (dailies addon)
  - Use discord bot to send status of bot (current farm status)
+
+Current working features:
+- Repeat battles /!\ Clear whole inventory stack using simple buton /!\
