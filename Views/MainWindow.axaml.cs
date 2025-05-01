@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Arunka.Scripts;
 using Arunka.Scripts.StaticClassEnum;
 using Avalonia.Controls;
@@ -25,9 +26,30 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _adbConnector.StartConnector(); // Calls your function
-        _openMainMenuAdbScript = new OpenMainMenuADBScript(_adbConnector);
-        _repeatBattlesAdbScript = new RepeatBattlesADBScript(_adbConnector);
         _buttonCoordsManager = new ButtonCoordsManager(_adbConnector);
+
+        _openMainMenuAdbScript = new OpenMainMenuADBScript(_adbConnector, _buttonCoordsManager);
+        _repeatBattlesAdbScript = new RepeatBattlesADBScript(_adbConnector, _buttonCoordsManager);
+        
+        OnLoadClick(null, null);
+        
+        LoadImageNames();
+    }
+    
+    private void LoadImageNames()
+    {
+        string folderPath = Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/"; // change this to your folder path
+
+        if (Directory.Exists(folderPath))
+        {
+            var files = Directory.GetFiles(folderPath)
+                .Select(Path.GetFileName)
+                .ToList();
+
+            ImageNameDropdown.ItemsSource = files;
+            if (files.Any())
+                ImageNameDropdown.SelectedIndex = 0;
+        }
     }
 
     private void RepeatButtonOnClick(object? sender, RoutedEventArgs e)
@@ -46,16 +68,30 @@ public partial class MainWindow : Window
         }
     }
     
+    private void OnScreenshotClick(object? sender, RoutedEventArgs e)
+    {
+        _openMainMenuAdbScript.CaptureScreenshot();
+    }
+    
+    private void WaitAndTap(object? sender, RoutedEventArgs e)
+    {
+        string imageName = ImageNameDropdown.SelectedItem?.ToString() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(imageName))
+        {
+            _openMainMenuAdbScript.TapWhenOnScreen(imageName);
+        }
+    }
+    
     private void OnUpdateClick(object? sender, RoutedEventArgs e)
     {
-        string imageName = ImageNameInput.Text;
+        string imageName = ImageNameDropdown.SelectedItem?.ToString() ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(imageName))
         {
             _buttonCoordsManager.UpdatePosition(imageName);
         }
     }
 
-    private void OnLoadClick(object? sender, RoutedEventArgs e)
+    private void OnLoadClick(object? sender, RoutedEventArgs? e)
     {
         if (File.Exists(_coordsJSONPath))
         {

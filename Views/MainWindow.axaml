@@ -4,21 +4,32 @@
         Width="400" Height="300"
         Title="Centered Button">
     <Grid>
-        <Button Content="Repeat Battle"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Click="RepeatButtonOnClick"/>
-        
-      
             <StackPanel Margin="20" Spacing="10">
                 <TextBlock Text="Enter Image Name:"/>
-                <TextBox x:Name="ImageNameInput" Width="200"/>
+                <ComboBox x:Name="ImageNameDropdown" Width="200"/>
 
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <Button Content="Update Position" Click="OnUpdateClick"/>
                     <Button Content="Load JSON" Click="OnLoadClick"/>
                     <Button Content="Save JSON" Click="OnSaveClick"/>
                 </StackPanel>
+                
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Content="ScreenShot"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Click="OnScreenshotClick"/>
+                        
+                        <Button Content="WaitEndTap"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Click="WaitAndTap"/>
+                </StackPanel>
+                        
+                <Button Content="Repeat Battle"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Click="RepeatButtonOnClick"/>
             </StackPanel>
     </Grid>
 </Window>

@@ -127,4 +127,14 @@ public class ButtonCoordsManager(ADBConnector adbConnector) : ADBScriptBase(adbC
         }
     }
 
+    public ButtonCoords GetButtonCoordsWithName(string imageName)
+    {
+        foreach (var buttonCoord in _buttonCoords)
+        {
+            if(buttonCoord.Name == imageName)
+                return buttonCoord;
+        }
+        throw new Exception($"<UNK> Image '{imageName}' not found.");
+    }
+
 }

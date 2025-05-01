@@ -5,7 +5,7 @@ using Arunka.Scripts.StaticClassEnum;
 
 namespace Arunka.Scripts;
 
-public class RepeatBattlesADBScript(ADBConnector adbConnector) : ADBScriptBase(adbConnector)
+public class RepeatBattlesADBScript(ADBConnector adbConnector, ButtonCoordsManager buttonCoordsManager) : ADBScriptBase(adbConnector, buttonCoordsManager)
 {
     private bool _shouldRepeatBattle;
     private Thread _repeatBattleThread;
@@ -67,14 +67,14 @@ public class RepeatBattlesADBScript(ADBConnector adbConnector) : ADBScriptBase(a
             // Restart repeat
             if (searchResult)
             {
-                Thread.Sleep(GlobalVariables.SearchLoopCooldown * 5);
+                Thread.Sleep(GlobalVariables.SearchLoopCooldown * 2);
                 ClearSideStoryInventory();
                 Thread.Sleep(GlobalVariables.ClickCooldown);
                 RestartBattles();
             }
             
             // Sleep
-            Thread.Sleep(GlobalVariables.SearchLoopCooldown);
+            Thread.Sleep(GlobalVariables.SearchLoopCooldown * 5);
         }
     }
 
@@ -109,16 +109,16 @@ public class RepeatBattlesADBScript(ADBConnector adbConnector) : ADBScriptBase(a
         Thread.Sleep(GlobalVariables.ClickCooldown);
         TapAt(_startButton.X, _startButton.Y);
         
-        // Check success
-        var confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
-        if (confirm == null)
-        {
-            Thread.Sleep(GlobalVariables.ClickCooldown);
-            TapAt(_startButton.X, _startButton.Y);
-        }
+        // Check success TODO this part is shit idk I was drunk or smt
+        // var confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
+        // if (confirm == null)
+        // {
+        //     Thread.Sleep(GlobalVariables.ClickCooldown);
+        //     TapAt(_startButton.X, _startButton.Y);
+        // }
         
         // If still null probably need to use leif or SkyStones
-        confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
+        var confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
         if (confirm == null)
         {
             Thread.Sleep(GlobalVariables.ClickCooldown);
