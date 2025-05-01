@@ -20,7 +20,7 @@
                                 VerticalAlignment="Center"
                                 Click="OnScreenshotClick"/>
                         
-                        <Button Content="WaitEndTap"
+                        <Button Content="WaitAndTap"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Click="WaitAndTap"/>
