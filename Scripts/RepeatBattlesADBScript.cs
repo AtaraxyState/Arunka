@@ -7,10 +7,12 @@ namespace Arunka.Scripts;
 
 public class RepeatBattlesADBScript(ADBConnector adbConnector, ButtonCoordsManager buttonCoordsManager) : ADBScriptBase(adbConnector, buttonCoordsManager)
 {
-    private bool _shouldRepeatBattle;
-    private Thread _repeatBattleThread;
+    private bool _shouldRepeatBattle;    
     private ButtonCoordsManager _buttonCoords;
-    
+
+    private CancellationTokenSource? _cts;
+    private Thread _repeatBattleThread;
+
     private ButtonCoordsManager.ButtonCoords _inventoryButtonCoords;
     private ButtonCoordsManager.ButtonCoords _arrangeInventory;
     private ButtonCoordsManager.ButtonCoords _simpleSelection;
@@ -27,7 +29,6 @@ public class RepeatBattlesADBScript(ADBConnector adbConnector, ButtonCoordsManag
     
     public void StartRepeatBattles(Enums.ContentType contentType, ButtonCoordsManager buttonCoords)
     {
-        _shouldRepeatBattle = true;
         _buttonCoords = buttonCoords;
 
         _inventoryButtonCoords = _buttonCoords.GetButtonCoords.Find(x => x.Name == "Inventory.png");
@@ -48,18 +49,19 @@ public class RepeatBattlesADBScript(ADBConnector adbConnector, ButtonCoordsManag
         
         // Start repeatBattle loop
         _repeatBattleThread = new Thread(RepeatBattleLoop);
+        _cts = new CancellationTokenSource();
         _repeatBattleThread.Start();
     }
 
     public void StopRepeatBattles()
     {
-        _shouldRepeatBattle = false;
-        _repeatBattleThread.Join();
+        _cts.Cancel();            // Request cancellation
+        _repeatBattleThread.Join(1000);
     }
 
     private void RepeatBattleLoop()
     {
-        while (_shouldRepeatBattle)
+        while (!_cts.IsCancellationRequested)
         {
             // Check if repeat ended 
             bool searchResult = SearchImage(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/RepeatBattle.png");
@@ -82,53 +84,39 @@ public class RepeatBattlesADBScript(ADBConnector adbConnector, ButtonCoordsManag
     {
         Console.WriteLine("Clearing Side Story Inventory");
 
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_inventoryButtonCoords.X, _inventoryButtonCoords.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_arrangeInventory.X, _arrangeInventory.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_simpleSelection.X, _simpleSelection.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_sellButtonCoords.X, _sellButtonCoords.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_confirmSellButtonCoords.X, _confirmSellButtonCoords.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_quitInventory.X, _quitInventory.Y);
+        WaitAndTapFromCoords(_inventoryButtonCoords,true,_cts);
+        WaitAndTapFromCoords(_arrangeInventory,true, _cts);
+        WaitAndTapFromCoords(_simpleSelection,true, _cts);
+        WaitAndTapFromCoords(_sellButtonCoords,true, _cts);
+        WaitAndTapFromCoords(_confirmSellButtonCoords,true, _cts);
+        WaitAndTapFromCoords(_quitInventory,true, _cts);
     }
 
     private void RestartBattles()
     {
         Console.WriteLine("Restarting Battles");
         
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_confirmButton.X, _confirmButton.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_tryAgainButton.X, _tryAgainButton.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown * 2);
-        TapAt(_selectTeamButton.X, _selectTeamButton.Y);
-        Thread.Sleep(GlobalVariables.ClickCooldown);
-        TapAt(_startButton.X, _startButton.Y);
+        WaitAndTapFromCoords(_confirmButton,true, _cts);
+        WaitAndTapFromCoords(_tryAgainButton,true, _cts);
+        Thread.Sleep(GlobalVariables.ClickCooldown * 5);
+
+        WaitAndTapFromCoords(_selectTeamButton, false, _cts);
+        WaitAndTapFromCoords(_startButton,false, _cts);
         
-        // Check success TODO this part is shit idk I was drunk or smt
-        // var confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
-        // if (confirm == null)
-        // {
-        //     Thread.Sleep(GlobalVariables.ClickCooldown);
-        //     TapAt(_startButton.X, _startButton.Y);
-        // }
+        Thread.Sleep(GlobalVariables.ClickCooldown);
         
-        // If still null probably need to use leif or SkyStones
-        var confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/Start.png");
+        // Check if need to buy stamina
+        var confirm = GetButtonLocation(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/SelectLeifs.png");
         if (confirm == null)
         {
             Thread.Sleep(GlobalVariables.ClickCooldown);
-            TapAt(_selectLeifsButton.X, _selectLeifsButton.Y);
+            WaitAndTapFromCoords(_selectLeifsButton,true, _cts);
             Thread.Sleep(GlobalVariables.ClickCooldown);
-            TapAt(_buyStamina.X, _buyStamina.Y);
+            WaitAndTapFromCoords(_buyStamina,true, _cts);
             
-            // Retap
+            // Retap confirm
             Thread.Sleep(GlobalVariables.ClickCooldown);
-            TapAt(_startButton.X, _startButton.Y);
+            WaitAndTapFromCoords(_startButton,false, _cts);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using Arunka.Scripts.StaticClassEnum;
 using OpenCvSharp;
 using Button = Arunka.Scripts.StaticClassEnum.Enums.Buttons.Button;
@@ -55,21 +56,62 @@ public class ADBScriptBase
         adbConnector.CaptureScreenshot(_tempScreenshotFilePath);
     }
     
-    internal bool WaitAndTap(string buttonImagePath, (int, int) expectedCenter, int timeOut = 5000)
+    /// <summary>
+    /// Will wait till its finds image and tap on it
+    /// Timeout is at default (5s)
+    /// </summary>
+    /// <param name="imageName"></param>
+    public void WaitAndTapFromPath(string imageName, bool regional, CancellationTokenSource? cancellationToken)
+    {
+        string targetImagePath =
+            Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/" + imageName;
+
+        ButtonCoordsManager.ButtonCoords buttonCoords = buttonCoordsManager.GetButtonCoordsWithName(imageName);
+
+        (int, int) coords = (buttonCoords.X, buttonCoords.Y);
+        
+        WaitAndTap(targetImagePath, coords, regional,cancellationToken);
+    }
+    
+    /// <summary>
+    /// Will wait till its finds image and tap on it
+    /// Timeout is at default (5s)
+    /// </summary>
+    /// <param name="imageName"></param>
+    public bool WaitAndTapFromCoords(ButtonCoordsManager.ButtonCoords buttonCoords, bool regional, CancellationTokenSource? cancellationToken)
+    {
+        string targetImagePath =
+            Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/" + buttonCoords.Name;
+        
+        (int, int) coords = (buttonCoords.X, buttonCoords.Y);
+        
+       return WaitAndTap(targetImagePath, coords, regional, cancellationToken);
+    }
+    
+    internal bool WaitAndTap(string buttonImagePath, (int, int) expectedCenter, bool regional, CancellationTokenSource? cancellationToken, int timeOut = 5000)
     {
         // Start the timer
         var startTime = DateTime.Now;
         
-        while (true)
-        {
+        while (!cancellationToken?.IsCancellationRequested ?? true)
+        {            
             // Find the button location
-            var buttonLocation = FindButtonLocationAtRegion(expectedCenter, buttonImagePath, 1);
+            (int, int)? buttonLocation;
+            if (regional)
+            {
+                buttonLocation = FindButtonLocationAtRegion(expectedCenter, buttonImagePath);
+            }
+            else
+            {
+                buttonLocation = GetButtonLocation(buttonImagePath);
+            }
 
             // If the button is found
             if (buttonLocation.HasValue)
             {
                 var (x, y) = buttonLocation.Value;
                 Console.WriteLine($"Found button at ({x}, {y}), tapping...");
+                Thread.Sleep(GlobalVariables.ClickCooldown); // Wait 200ms before checking again
                 TapAt(x, y);  // Tap at the location
                 return true;   // Successfully clicked the button
             }
@@ -82,12 +124,14 @@ public class ADBScriptBase
             }
 
             // Optional: Add a small delay to avoid overwhelming the system with requests
-            System.Threading.Thread.Sleep(GlobalVariables.SearchLoopCooldown / 5); // Wait 200ms before checking again
+            Thread.Sleep(GlobalVariables.SearchLoopCooldown / 5); // Wait 200ms before checking again
         }
+
+        return false;
     }
     
     
-    internal void CaptureScreenshotAtRegion((int, int) centerCoordinates, string imagePath, int searchAreaFraction = 2)
+    internal void CaptureScreenshotAtRegion((int, int) centerCoordinates, string imagePath)
     {
         // Load the button template to get its size
         var buttonTemplate = Cv2.ImRead(imagePath);
@@ -99,14 +143,16 @@ public class ADBScriptBase
         }
 
         // Prevent invalid search area fraction
-        if (searchAreaFraction < 1)
-        {
-            Console.WriteLine("Error: searchAreaFraction must be >= 1.");
-            return;
-        }
+        // if (searchAreaFraction < 1)
+        // {
+        //     Console.WriteLine("Error: searchAreaFraction must be >= 1.");
+        //     return;
+        // }
 
-        int imageWidth = buttonTemplate.Width * searchAreaFraction;
-        int imageHeight = buttonTemplate.Height * searchAreaFraction;
+        int imageWidth = buttonTemplate.Width;
+        int imageHeight = buttonTemplate.Height;
+        
+        // Console.WriteLine($"Image {imagePath} width: {imageWidth}, image height: {imageHeight}");
 
         CapturePartialScreenshot(centerCoordinates, imageWidth, imageHeight);
     }
@@ -143,6 +189,9 @@ public class ADBScriptBase
 
         // Crop and save
         var roi = new Rect(startX, startY, width, height);
+        
+        // Console.WriteLine($"Captured screenshot area ({roi.ToString()})");
+        
         var croppedScreen = new Mat(screenMat, roi);
         Cv2.ImWrite(_tempRegionScreenshotFilePath, croppedScreen);
         
@@ -155,9 +204,9 @@ public class ADBScriptBase
     /// <param name="center"></param>
     /// <param name="buttonImagePath"></param>
     /// <returns></returns>
-    internal (int, int)? FindButtonLocationAtRegion((int, int) center, string buttonImagePath, int searchAreaFraction = 2)
+    internal (int, int)? FindButtonLocationAtRegion((int, int) center, string buttonImagePath)
     {
-        CaptureScreenshotAtRegion(center, buttonImagePath, searchAreaFraction);
+        CaptureScreenshotAtRegion(center, buttonImagePath);
 
         // Load the screenshot and the button image
         var screenMat = Cv2.ImRead(_tempRegionScreenshotFilePath);

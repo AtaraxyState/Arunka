@@ -28,21 +28,4 @@ public class OpenMainMenuADBScript(ADBConnector adbConnector, ButtonCoordsManage
             Console.WriteLine(e);
         }
     }
-
-    /// <summary>
-    /// Will wait till its finds image and tap on it
-    /// Timeout is at default (5s)
-    /// </summary>
-    /// <param name="imageName"></param>
-    public void TapWhenOnScreen(string imageName)
-    {
-        string targetImagePath =
-            Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\") + "/Resources/Buttons/" + imageName;
-
-        ButtonCoordsManager.ButtonCoords buttonCoords = buttonCoordsManager.GetButtonCoordsWithName(imageName);
-
-        (int, int) coords = (buttonCoords.X, buttonCoords.Y);
-        
-        WaitAndTap(targetImagePath, coords);
-    }
 }

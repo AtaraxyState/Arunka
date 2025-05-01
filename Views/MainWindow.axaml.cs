@@ -54,15 +54,15 @@ public partial class MainWindow : Window
 
     private void RepeatButtonOnClick(object? sender, RoutedEventArgs e)
     {
-        _repeatBattleState= !_repeatBattleState;
-
-        if (_repeatBattleState)
+        if (_repeatBattleState == false)
         {
+            _repeatBattleState = true;
             _connectorUsed = true;
             _repeatBattlesAdbScript.StartRepeatBattles(Enums.ContentType.Custom, _buttonCoordsManager);
         }
         else
         {
+            _repeatBattleState = false;
             _repeatBattlesAdbScript.StopRepeatBattles();
             _connectorUsed = false;
         }
@@ -78,7 +78,7 @@ public partial class MainWindow : Window
         string imageName = ImageNameDropdown.SelectedItem?.ToString() ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(imageName))
         {
-            _openMainMenuAdbScript.TapWhenOnScreen(imageName);
+            _openMainMenuAdbScript.WaitAndTapFromPath(imageName, true,null);
         }
     }
     
