@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# PyInstaller output
+*.exe
+*.app
+bundle.pack
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# History data (large, user-local screenshots)
+history/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+_push_to_github.bat

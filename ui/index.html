@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arunka — Epic Seven Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Chakra+Petch:wght@400;500;600;700&family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="arunka-tech.css">
+<link rel="stylesheet" href="arunka-app.css">
+<style>
+  /* Extra live-state styles */
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);box-shadow:none;display:inline-block;transition:.3s;}
+  .status-dot.ok{background:var(--jade);box-shadow:0 0 8px var(--jade);}
+  .status-dot.err{background:var(--crimson-br);box-shadow:0 0 8px var(--crimson-br);}
+  #preview-stage-wrap{position:relative;margin:14px;border:1px solid var(--line-2);border-radius:12px;overflow:hidden;background:#0c0e12;}
+  #preview-img{display:block;width:100%;height:auto;min-height:200px;object-fit:contain;}
+  #preview-placeholder{display:flex;align-items:center;justify-content:center;height:220px;color:var(--muted);font-family:var(--tech);font-size:12px;}
+  .ovl-live{position:absolute;border:1.5px solid var(--ice);box-shadow:0 0 12px rgba(79,227,224,.5);background:rgba(79,227,224,.08);pointer-events:none;}
+  .ovl-live b{position:absolute;top:-17px;left:0;font-family:var(--tech);font-size:9px;color:var(--ice);white-space:nowrap;}
+  #roll-img-wrap{position:relative;margin:14px;border:1px solid var(--line-2);border-radius:12px;overflow:hidden;background:#0c0e12;}
+  #roll-img{display:block;width:100%;height:auto;}
+  #roll-placeholder{display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-family:var(--tech);font-size:12px;}
+  .runbtn.stop{background:linear-gradient(180deg,#444,#2a2a2a);border-color:#666;}
+  .runbtn.paused{background:linear-gradient(180deg,#e0a020,#b07818);border-color:#e0a020;}
+  select.sel option{background:#0a0e14;}
+</style>
+</head>
+<body data-theme="dark" data-shell="c" data-amb="right">
+
+<div class="char-glow show" id="charGlow"></div>
+<img class="ambient right show" id="ambient" src="assets/arunka.png" alt="">
+<div class="ambient-scrim"></div>
+<div class="petal-field" id="petals"></div>
+
+<!-- ============ SINGLE PERSISTENT NAV ============ -->
+<div class="topnav">
+  <nav class="gearnav">
+    <button class="tab" data-v="settings">Settings</button>
+    <button class="tab" data-v="calibration">Calibration</button>
+    <button class="tab" data-v="routes">Routes</button>
+    <button class="tab on" data-v="shop">Secret Shop</button>
+    <button class="tab" data-v="dailies">Dailies</button>
+    <button class="tab" data-v="history">History</button>
+    <button class="tab" data-v="logs">Logs</button>
+  </nav>
+  <button class="navsettings" data-v="settings" title="Settings">⚙</button>
+</div>
+
+<!-- ============ VIEW: SETTINGS ============ -->
+<section class="view" id="v-settings">
+  <div class="view-head">
+    <h1 data-kick="system · adb link">Settings <span class="jp">設定</span></h1>
+    <p>Connect Arunka to your BlueStacks emulator over ADB.</p>
+  </div>
+  <div class="row screenwrap">
+    <div class="col panel">
+      <div class="cardhd" style="justify-content:space-between;">ADB Connection
+        <span id="adb-status-badge" style="display:flex;align-items:center;gap:7px;font-family:var(--tech);font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">
+          <span class="status-dot" id="adb-dot"></span><span id="adb-status-text">not connected</span>
+        </span>
+      </div>
+      <div class="pad">
+        <div class="field"><label>ADB host</label><input class="inp" id="cfg-adb-host" style="width:140px;" value="localhost"></div>
+        <div class="field"><label>ADB port</label><input class="inp" id="cfg-adb-port" value="5555"></div>
+        <div class="field" style="align-items:flex-start;flex-direction:column;gap:8px;">
+          <label>ADB path</label>
+          <div style="display:flex;gap:8px;width:100%;"><input class="inp" id="cfg-adb-path" style="flex:1;width:auto;text-align:left;" value="C:\Program Files\BlueStacks_nxt\HD-Adb.exe"><button class="ghostbtn sm" onclick="browseFile('cfg-adb-path')">Browse…</button></div>
+        </div>
+        <div class="field" style="align-items:flex-start;flex-direction:column;gap:8px;border-bottom:0;">
+          <label>BlueStacks player</label>
+          <div style="display:flex;gap:8px;width:100%;"><input class="inp" id="cfg-bs-path" style="flex:1;width:auto;text-align:left;" value="C:\Program Files\BlueStacks_nxt\HD-Player.exe"><button class="ghostbtn sm" onclick="browseFile('cfg-bs-path')">Browse…</button></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button class="runbtn" id="connect-btn" style="margin:0;flex:1;padding:13px;" onclick="connectAdb()">⚡ Connect</button>
+          <button class="ghostbtn" style="flex:1;" onclick="launchBluestacks()">▶ Launch BlueStacks</button>
+        </div>
+      </div>
+    </div>
+    <div class="col panel" style="max-width:320px;">
+      <div class="cardhd">Status</div>
+      <div class="pad">
+        <div class="field"><label>Device</label><span class="chip" id="device-chip" style="color:var(--muted);">—</span></div>
+        <div class="field"><label>Capture scale</label><span class="chip"><i class="ico blue"></i>1920px max</span></div>
+        <div class="field"><label>Screencap method</label><span class="chip">ADB screencap</span></div>
+        <div class="field" style="border-bottom:0;"><label>Templates loaded</label><span class="chip" id="templates-chip"><i class="ico gn"></i><span id="templates-count">0 / 12</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row screenwrap">
+    <div class="col panel" style="max-width:520px;">
+      <div class="cardhd">Appearance &amp; HUD</div>
+      <div class="pad">
+        <div class="optrow"><label>Theme</label>
+          <div class="segset" id="themeSeg">
+            <button data-theme-set="dark" class="on">☾ Dark</button>
+            <button data-theme-set="light">☀ White</button>
+          </div>
+        </div>
+        <div class="optrow" style="border-bottom:0;"><label>Status window</label>
+          <div class="segset" id="hudSeg">
+            <button data-set="seal" class="on">◉ Seal HUD</button>
+            <button data-set="bar">▭ Status Bar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW: CALIBRATION ============ -->
+<section class="view" id="v-calibration">
+  <div class="view-head">
+    <h1 data-kick="vision · template + nav capture">Calibration <span class="jp">照準</span></h1>
+    <p>Teach Arunka what to look for — drag a box to capture a template, single-click to record a nav point. <span class="hand">cyan = live matches ✦</span></p>
+  </div>
+  <div class="calib">
+    <div class="calib-side panel">
+      <div class="cardhd">Mode</div>
+      <div class="pad" style="overflow:visible;flex:none;padding-bottom:8px;">
+        <div class="mode-opt on" data-mopt="tpl"><span class="radio"><i></i></span><div><div style="font-size:13px;">Template <small>· drag region</small></div></div></div>
+        <div class="mode-opt" data-mopt="nav"><span class="radio"><i></i></span><div><div style="font-size:13px;">Nav click <small>· single click</small></div></div></div>
+        <div class="note dim" style="font-size:15px;margin-top:4px;">drag a box around a UI element ✎</div>
+      </div>
+      <div class="pad" id="calib-checklist" style="border-top:1px solid var(--line);">
+        <div class="grp head first">Templates</div>
+        <div class="grp">Secret Shop</div>
+        <div class="cap-row"><span class="dot" id="dot-shop_refresh_btn"></span><label>Refresh button</label><button class="capbtn" onclick="captureTemplate('shop_refresh_btn')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-shop_confirm_refresh_btn"></span><label>Confirm refresh dialog</label><button class="capbtn" onclick="captureTemplate('shop_confirm_refresh_btn')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-shop_buy_btn"></span><label>Buy button (row)</label><button class="capbtn" onclick="captureTemplate('shop_buy_btn')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-shop_confirm_buy_btn"></span><label>Buy button (confirm dialog)</label><button class="capbtn" onclick="captureTemplate('shop_confirm_buy_btn')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-item_covenant_bookmark"></span><label>Covenant bookmark icon</label><button class="capbtn" onclick="captureTemplate('item_covenant_bookmark')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-item_mystic_medal"></span><label>Mystic medal icon</label><button class="capbtn" onclick="captureTemplate('item_mystic_medal')">Capture</button></div>
+        <div class="grp">Dailies</div>
+        <div class="cap-row"><span class="dot" id="dot-daily_missions_tab"></span><label>Daily missions tab</label><button class="capbtn" onclick="captureTemplate('daily_missions_tab')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-daily_claim_all_btn"></span><label>Claim all (dailies)</label><button class="capbtn" onclick="captureTemplate('daily_claim_all_btn')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-mailbox_tab"></span><label>Mailbox tab</label><button class="capbtn" onclick="captureTemplate('mailbox_tab')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-mailbox_claim_all_btn"></span><label>Claim all (mailbox)</label><button class="capbtn" onclick="captureTemplate('mailbox_claim_all_btn')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-reputation_tab"></span><label>Reputation tab</label><button class="capbtn" onclick="captureTemplate('reputation_tab')">Capture</button></div>
+        <div class="cap-row"><span class="dot" id="dot-reputation_claim_btn"></span><label>Claim (reputation)</label><button class="capbtn" onclick="captureTemplate('reputation_claim_btn')">Capture</button></div>
+        <div class="grp head" style="margin-top:18px;">Nav Click Points</div>
+        <div class="grp">Secret Shop</div>
+        <div class="cap-row"><span class="dot" id="dot-nav_lobby"></span><label>Lobby / main screen</label><button class="capbtn" onclick="recordNavPoint('nav_lobby')">Record</button></div>
+        <div class="cap-row"><span class="dot" id="dot-nav_shop_tab"></span><label>Shop icon in nav bar</label><button class="capbtn" onclick="recordNavPoint('nav_shop_tab')">Record</button></div>
+        <div class="cap-row"><span class="dot" id="dot-nav_secret_shop"></span><label>Secret Shop entry</label><button class="capbtn" onclick="recordNavPoint('nav_secret_shop')">Record</button></div>
+        <div class="grp">Dailies</div>
+        <div class="cap-row"><span class="dot" id="dot-nav_daily_tab"></span><label>Daily missions icon</label><button class="capbtn" onclick="recordNavPoint('nav_daily_tab')">Record</button></div>
+        <div class="cap-row"><span class="dot" id="dot-nav_mailbox"></span><label>Mailbox icon</label><button class="capbtn" onclick="recordNavPoint('nav_mailbox')">Record</button></div>
+        <div class="cap-row"><span class="dot" id="dot-nav_reputation"></span><label>Reputation icon</label><button class="capbtn" onclick="recordNavPoint('nav_reputation')">Record</button></div>
+      </div>
+      <div class="pad" style="border-top:1px solid var(--line);flex:none;">
+        <button class="runbtn" style="margin:0;padding:13px;" onclick="refreshScreenshot()">◎ Refresh Screenshot</button>
+      </div>
+    </div>
+
+    <div class="preview panel">
+      <div class="preview-head">
+        <span style="font-family:var(--brush);color:var(--sakura);letter-spacing:.1em;">Game Preview</span>
+        <button class="ghostbtn sm" onclick="refreshScreenshot()">↻ Refresh</button>
+      </div>
+      <div id="preview-stage-wrap">
+        <img id="preview-img" style="display:none;">
+        <div id="preview-placeholder">Connect ADB and hit Refresh to see the game screen</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW: SECRET SHOP ============ -->
+<section class="view" id="v-shop">
+  <div class="view-head">
+    <h1 data-kick="task · config">Secret Shop <span class="jp">秘密商店</span></h1>
+    <p>Configure what to buy, then hit Run. <span class="hand">Live window keeps you posted →</span></p>
+  </div>
+
+  <div class="panel cluster screenwrap">
+    <div class="cluster-l">
+      <div class="revstrip">
+        <i id="rv0"></i><i id="rv1"></i><i id="rv2"></i><i id="rv3"></i><i id="rv4"></i>
+        <i id="rv5"></i><i id="rv6"></i><i id="rv7"></i><i id="rv8"></i><i id="rv9"></i>
+      </div>
+      <div class="gauge">
+        <svg viewBox="0 0 150 92" style="overflow:visible;">
+          <path d="M12 84 A63 63 0 0 1 138 84" fill="none" stroke="rgba(150,180,215,.14)" stroke-width="8" stroke-linecap="round"/>
+          <path id="gv" d="M12 84 A63 63 0 0 1 138 84" fill="none" stroke="url(#tg)" stroke-width="8" stroke-linecap="round" stroke-dasharray="197.9" stroke-dashoffset="197.9"/>
+          <defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f0588c"/><stop offset=".6" stop-color="#ff7daa"/><stop offset="1" stop-color="#4fe3e0"/></linearGradient></defs>
+          <line id="ndl" x1="75" y1="84" x2="75" y2="30" stroke="#ff7daa" stroke-width="2.5" stroke-linecap="round" style="transform-box:view-box;transform-origin:75px 84px;"/>
+          <circle cx="75" cy="84" r="4.5" fill="#ff7daa"/>
+        </svg>
+        <div class="center"><div class="st" id="g-st">READY</div><div class="lb">SECRET SHOP</div></div>
+      </div>
+    </div>
+    <div class="readouts">
+      <div class="cell"><div class="k">Status</div><div class="v" id="r-status">IDLE</div></div>
+      <div class="cell"><div class="k">Refreshes</div><div class="v pink"><span id="r-refresh">0</span><span style="font-size:13px;color:var(--muted)" id="r-max"> /100</span></div></div>
+      <div class="cell"><div class="k">Skystones</div><div class="v ice" id="r-sky">—</div></div>
+      <div class="cell"><div class="k">Items found</div><div class="v gold" id="r-found">0</div></div>
+      <div class="cell"><div class="k">Elapsed</div><div class="v" id="r-elapsed">00:00</div></div>
+    </div>
+  </div>
+
+  <div class="row screenwrap">
+    <div class="col panel">
+      <div class="cardhd">Rules</div>
+      <div class="pad">
+        <div class="field"><label>Max refreshes</label><div class="stepper"><button data-step="-1" data-t="maxref">−</button><span class="v" id="maxref">100</span><button data-step="1" data-t="maxref">+</button></div></div>
+        <div class="check"><div class="box on" id="chk-bookmarks">✓</div><label>Buy Covenant Bookmarks</label></div>
+        <div class="check"><div class="box on" id="chk-mystic">✓</div><label>Buy Mystic Medals</label></div>
+        <div class="check"><div class="box on" id="chk-history">✓</div><label>Record roll history</label></div>
+        <div style="text-align:right;margin-top:8px;"><button class="ghostbtn" onclick="saveShopSettings()">Save settings</button></div>
+      </div>
+    </div>
+    <div class="col panel">
+      <div class="cardhd">Timing</div>
+      <div class="pad">
+        <button class="runbtn compact" id="runbtn" onclick="toggleShop()">▶ Run Shop Rolling</button>
+        <div class="field"><label>Click delay (s)</label><input class="inp" id="t-click" value="0.15"></div>
+        <div class="field"><label>Nav delay (s)</label><input class="inp" id="t-nav" value="0.6"></div>
+        <div class="field"><label>Scroll amount</label><input class="inp" id="t-scroll" value="0.35"></div>
+        <div class="field" style="border-bottom:0;"><label>Scroll duration (s)</label><input class="inp" id="t-scrolld" value="0.3"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+          <button class="ghostbtn sm" onclick="resetShop()">↻ Reset</button>
+          <button class="ghostbtn sm" onclick="saveShopSettings()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW: ROUTES ============ -->
+<section class="view" id="v-routes">
+  <div class="view-head">
+    <h1 data-kick="navigation · click sequences">Routes <span class="jp">経路</span></h1>
+    <p>Named sequences of nav points so tasks can drive through menus.</p>
+  </div>
+  <div class="row screenwrap">
+    <div class="col panel" style="max-width:240px;display:flex;flex-direction:column;">
+      <div class="cardhd">Saved Routes</div>
+      <div class="pad" style="flex:1;" id="routes-list">
+        <div style="color:var(--muted);font-family:var(--tech);font-size:12px;">Loading…</div>
+      </div>
+      <div class="pad" style="padding-top:0;display:flex;gap:8px;">
+        <button class="ghostbtn" style="flex:1;" onclick="newRoute()">+ New</button>
+        <button class="dangerbtn" style="flex:1;" onclick="deleteRoute()">Delete</button>
+      </div>
+    </div>
+    <div class="col" style="display:flex;flex-direction:column;gap:18px;">
+      <div class="panel">
+        <div class="cardhd">Route Info</div>
+        <div class="pad">
+          <div class="field" style="border-bottom:0;gap:14px;"><label style="flex:none;width:96px;">Name</label><input class="inp" id="route-name" style="flex:1;width:auto;text-align:left;" placeholder="route_name"></div>
+          <div class="field" style="border-bottom:0;gap:14px;"><label style="flex:none;width:96px;">Description</label><input class="inp" id="route-desc" style="flex:1;width:auto;text-align:left;" placeholder="What this route does"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="cardhd" style="justify-content:space-between;">Steps <span style="font-family:var(--tech);font-size:10px;color:var(--muted);letter-spacing:0;text-transform:none;">top = first click</span></div>
+        <div class="pad">
+          <div id="steps-list"></div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;">
+            <span style="font-family:var(--tech);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">Add step</span>
+            <select class="sel" id="step-select" style="flex:1;"><option value="">— select nav point —</option></select>
+            <button class="ghostbtn sm" onclick="addStep()">+ Add</button>
+          </div>
+        </div>
+      </div>
+      <button class="runbtn" onclick="saveRoute()">▣ Save Route</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW: DAILIES ============ -->
+<section class="view" id="v-dailies">
+  <div class="view-head">
+    <h1 data-kick="task · auto-claim">Dailies <span class="jp">日課</span></h1>
+    <p>Select which daily tasks to automate, then run.</p>
+  </div>
+  <div class="screenwrap panel" style="max-width:680px;">
+    <div class="cardhd">Tasks</div>
+    <div class="pad">
+      <div class="check"><div class="box on" id="d-missions">✓</div><label>Claim daily mission rewards</label></div>
+      <div class="check"><div class="box on" id="d-mailbox">✓</div><label>Claim mailbox</label></div>
+      <div class="check"><div class="box on" id="d-reputation">✓</div><label>Claim reputation rewards</label></div>
+    </div>
+  </div>
+  <button class="runbtn" id="dailies-runbtn" style="max-width:680px;" onclick="toggleDailies()">▶ Run Dailies</button>
+</section>
+
+<!-- ============ VIEW: HISTORY ============ -->
+<section class="view" id="v-history">
+  <div class="view-head">
+    <h1 data-kick="telemetry · run log">History <span class="jp">記録</span></h1>
+    <p>Recorded rolls — step through each captured frame.</p>
+  </div>
+  <div class="row screenwrap">
+    <div class="col panel" style="max-width:240px;display:flex;flex-direction:column;">
+      <div class="cardhd" style="justify-content:space-between;">Runs <span style="font-family:var(--tech);font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0;" id="history-size">—</span></div>
+      <div class="pad" style="flex:1;" id="history-runs-list">
+        <div style="color:var(--muted);font-family:var(--tech);font-size:12px;">Loading…</div>
+      </div>
+      <div class="pad" style="padding-top:0;display:flex;gap:8px;">
+        <button class="ghostbtn" style="flex:1;" onclick="loadHistory()">Refresh</button>
+        <button class="dangerbtn" style="flex:1;" onclick="clearHistory()">Clear all</button>
+      </div>
+    </div>
+    <div class="col panel">
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;">
+        <button class="navsq" id="roll-prev" onclick="prevRoll()">◀</button>
+        <span style="font-family:var(--tech);font-size:12px;color:var(--bone);" id="roll-counter">Roll — / —</span>
+        <button class="navsq" id="roll-next" onclick="nextRoll()">▶</button>
+        <span class="seg-toggle"><b class="on" id="seg-top" onclick="switchHalf('top')">Top</b><b id="seg-bot" onclick="switchHalf('bottom')">Bottom</b></span>
+        <span style="flex:1;"></span>
+        <button class="dangerbtn sm" onclick="deleteCurrentRoll()">Delete roll</button>
+        <button class="dangerbtn sm" onclick="deleteCurrentRun()">Delete run</button>
+        <button class="ghostbtn sm" onclick="exportCsv()">Export CSV</button>
+      </div>
+      <div id="roll-img-wrap">
+        <img id="roll-img" style="display:none;">
+        <div id="roll-placeholder">Select a run to view rolls</div>
+      </div>
+      <div id="roll-outcome" style="margin:0 14px 14px;padding:10px 13px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid var(--line);font-family:var(--tech);font-size:12px;color:var(--bone);display:none;">
+        <span style="color:var(--muted)">Outcome:</span> <span id="roll-outcome-text">—</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW: LOGS ============ -->
+<section class="view" id="v-logs">
+  <div class="view-head">
+    <h1 data-kick="system · live output">Logs <span class="jp">記録</span></h1>
+    <p>Live colored output from the bot runtime.</p>
+  </div>
+  <div class="screenwrap panel">
+    <div class="logbar">
+      <div class="lfilter">
+        <b class="on" data-lf="ALL">ALL</b>
+        <b data-lf="INFO">INFO</b>
+        <b data-lf="OK">OK</b>
+        <b data-lf="WARN">WARN</b>
+        <b data-lf="ERR">ERR</b>
+      </div>
+      <span style="flex:1;"></span>
+      <span class="check" style="padding:0;gap:7px;"><span class="box on" id="autoscroll-box" style="width:18px;height:18px;">✓</span><label style="font-size:12px;flex:none;" onclick="toggleAutoscroll()">Autoscroll</label></span>
+      <button class="dangerbtn sm" onclick="clearLogs()">Clear</button>
+    </div>
+    <div class="terminal" id="terminal"></div>
+  </div>
+</section>
+
+<!-- ============ SEAL HUD ============ -->
+<div class="live-seal" id="liveSeal">
+  <span class="collapse" title="collapse">▢</span>
+  <div class="top">
+    <div class="seal-portrait">
+      <span class="pulse"></span>
+      <svg class="ring" width="80" height="80" viewBox="0 0 80 80" style="position:absolute;inset:0;">
+        <circle class="trk" cx="40" cy="40" r="35" stroke-width="5"/>
+        <circle class="val" id="sealRing" cx="40" cy="40" r="35" stroke-width="5" stroke-dasharray="219.9" stroke-dashoffset="219.9"/>
+      </svg>
+      <div class="face"><img src="assets/arunka.png" alt="Arunka"></div>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div class="taskstate" id="hud-state">● idle</div>
+      <div class="tasklabel" id="hud-task">Arunka</div>
+      <div style="font-family:var(--tech);font-size:11px;color:var(--muted);margin-top:3px;" id="hud-sub">ready</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
+    <span class="chip"><i class="ico blue"></i><b id="s-sky">—</b></span>
+  </div>
+  <div style="display:flex;gap:7px;margin-top:12px;align-items:center;">
+    <div class="ctrlbtn" id="hud-pause" title="pause/resume" onclick="hudPause()">❚❚</div>
+    <div class="ctrlbtn stop" title="stop" onclick="hudStop()">■</div>
+    <div style="flex:1"></div>
+    <div style="font-family:var(--tech);font-size:11px;color:var(--muted);" id="hud-elapsed">—</div>
+  </div>
+</div>
+
+<!-- ============ STATUS BAR ============ -->
+<div class="live-bar" id="liveBar">
+  <img src="assets/arunka.png" alt="Arunka">
+  <div class="seg" style="flex:none;min-width:150px;">
+    <div class="taskstate" id="bar-state" style="color:var(--crimson-br)">▮ IDLE</div>
+    <div class="glitch" id="bar-task" data-t="ARUNKA" style="font-size:15px;">ARUNKA</div>
+  </div>
+  <div class="seg" style="flex:1;">
+    <div style="display:flex;justify-content:space-between;font-family:var(--tech);font-size:9.5px;color:var(--muted);letter-spacing:.1em;">
+      <span id="bar-sub">READY</span><span id="bar-pct">0%</span>
+    </div>
+    <div class="bar" style="margin-top:5px;height:5px;"><i id="bar-bar" style="width:0%"></i></div>
+    <div class="bar-read" style="margin-top:7px;">
+      <span style="color:#5aa9e6">◇ <b id="b-sky">—</b></span>
+      <span style="color:var(--muted)">elapsed <b id="b-elapsed" style="color:var(--bone)">—</b></span>
+    </div>
+  </div>
+  <div class="seg" style="display:flex;gap:7px;">
+    <div class="ctrlbtn" title="pause" onclick="hudPause()">❚❚</div>
+    <div class="ctrlbtn stop" title="stop" onclick="hudStop()">■</div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   ARUNKA — frontend runtime
+   Talks to Python via window.pywebview.api.*  (each call → Promise)
+   Python pushes updates via window.arunka.* callbacks
+   ===================================================================== */
+
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let _shopRunning  = false;
+let _shopPaused   = false;
+let _dailiesRunning = false;
+let _autoscroll   = true;
+let _currentRun   = null;   // { run_id, rolls: [] }
+let _currentRoll  = 0;      // index into _currentRun.rolls
+let _rollHalf     = 'top';
+let _routes       = {};
+let _navPoints    = [];
+let _selectedRoute = null;
+let _currentSteps = [];
+
+// Gauge animation
+const ARC = 197.9, RINGC = 219.9;
+let _rpm = 0, _rpmTarget = 0, _raf = null;
+
+// ── Petals ───────────────────────────────────────────────────────────────────
+(function(){
+  const f = $('#petals'); let html = '';
+  for(let i=0;i<10;i++)
+    html+=`<span class="pf-petal" style="left:${4+i*10}%;animation-duration:${9+i%6}s;animation-delay:${i*1.3}s;transform:scale(${.6+(i%3)*.3})"></span>`;
+  f.innerHTML = html;
+})();
+
+// ── Ambient art per view ─────────────────────────────────────────────────────
+const AMB = {
+  settings:   {side:'right', cls:''},
+  calibration:{side:'left',  cls:'small faint'},
+  routes:     {side:'left',  cls:'small'},
+  shop:       {side:'right', cls:''},
+  dailies:    {side:'right', cls:''},
+  history:    {side:'right', cls:'faint'},
+  logs:       {side:'left',  cls:'faint'},
+};
+function placeAmbient(v){
+  const a = AMB[v] || AMB.shop;
+  document.body.dataset.amb = a.side;
+  $('#ambient').className = 'ambient show ' + a.side + ' ' + a.cls;
+  $('#charGlow').className = 'char-glow ' + (a.cls.includes('faint') ? '' : 'show');
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function show(v){
+  if(!AMB[v]) v = 'shop';
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === v));
+  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-'+v));
+  $('.navsettings')?.classList.toggle('on', v === 'settings');
+  localStorage.setItem('arunka-tab', v);
+  placeAmbient(v);
+  // Lazy-load tab data
+  if(v === 'history')   loadHistory();
+  if(v === 'routes')    loadRoutes();
+  if(v === 'calibration') loadTemplateStatus();
+}
+$$('.tab').forEach(t => t.addEventListener('click', () => show(t.dataset.v)));
+$('.navsettings')?.addEventListener('click', () => show('settings'));
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function setTheme(t){
+  document.body.setAttribute('data-theme', t);
+  localStorage.setItem('arunka-theme', t);
+  $$('[data-theme-set]').forEach(x => x.classList.toggle('on', x.dataset.themeSet === t));
+}
+$$('[data-theme-set]').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themeSet)));
+
+// ── HUD mode ─────────────────────────────────────────────────────────────────
+function setWinMode(m){
+  localStorage.setItem('arunka-winmode', m);
+  $$('[data-set]').forEach(x => x.classList.toggle('on', x.dataset.set === m));
+  document.body.dataset.mode = m;
+}
+$$('[data-set]').forEach(b => b.addEventListener('click', () => setWinMode(b.dataset.set)));
+
+// ── Steppers ─────────────────────────────────────────────────────────────────
+$$('.stepper button[data-step]').forEach(b => b.addEventListener('click', () => {
+  const el = document.getElementById(b.dataset.t);
+  let v = parseInt(el.textContent.replace(/,/g,'')) + (+b.dataset.step);
+  v = Math.max(0, v);
+  el.textContent = v.toLocaleString();
+}));
+
+// ── Checkboxes ───────────────────────────────────────────────────────────────
+$$('.check .box').forEach(b => b.addEventListener('click', () => {
+  b.classList.toggle('on');
+  b.textContent = b.classList.contains('on') ? '✓' : '';
+}));
+
+// ── Log filter ───────────────────────────────────────────────────────────────
+$$('.lfilter b').forEach(b => b.addEventListener('click', () => {
+  $$('.lfilter b').forEach(x => x.classList.toggle('on', x === b));
+  const f = b.dataset.lf;
+  $$('#terminal .logline').forEach(l => {
+    const lv = l.dataset.lv || 'info';
+    l.style.display = (f === 'ALL' || lv.toUpperCase() === f) ? 'flex' : 'none';
+  });
+}));
+
+// ── Calibration radio ────────────────────────────────────────────────────────
+$$('.mode-opt').forEach(o => o.addEventListener('click', () =>
+  o.parentElement.querySelectorAll('.mode-opt').forEach(x => x.classList.toggle('on', x === o))
+));
+
+// ── Seal HUD drag ────────────────────────────────────────────────────────────
+(function(){
+  const el = $('#liveSeal'); if(!el) return;
+  let d=false, sx, sy, ox=0, oy=0;
+  el.addEventListener('pointerdown', e => {
+    if(e.target.classList.contains('collapse')||e.target.classList.contains('ctrlbtn')) return;
+    d=true; sx=e.clientX; sy=e.clientY; el.style.cursor='grabbing'; el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove', e => { if(!d) return; el.style.transform=`translate(${ox+e.clientX-sx}px,${oy+e.clientY-sy}px)`; });
+  el.addEventListener('pointerup',   e => { d=false; ox+=e.clientX-sx; oy+=e.clientY-sy; el.style.cursor='grab'; });
+  el.querySelector('.collapse').addEventListener('click', () => {
+    el.style.transition='.25s'; el.style.opacity='.4'; el.style.transform+=' scale(.85)';
+    setTimeout(()=>{ el.style.opacity='1'; el.style.transform=el.style.transform.replace(' scale(.85)',''); },650);
+  });
+})();
+
+// ── Gauge RAF loop ────────────────────────────────────────────────────────────
+function paintGauge(){
+  const f = Math.max(0, Math.min(1, _rpm));
+  const gv=$('#gv'); if(gv) gv.style.strokeDashoffset = ARC*(1-f);
+  const n=$('#ndl');  if(n)  n.style.transform = `rotate(${-90+180*f}deg)`;
+  const lit = Math.round(f*10);
+  for(let i=0;i<10;i++){
+    const el=$('#rv'+i); if(!el) continue;
+    el.className = i<lit ? (i>=9?'red':i>=6?'warn':'on') : '';
+  }
+}
+function gaugeLoop(){ _rpm += (_rpmTarget-_rpm)*0.12; _rpm=Math.max(0,_rpm); paintGauge(); _raf=requestAnimationFrame(gaugeLoop); }
+gaugeLoop();
+
+// ── HUD sync ──────────────────────────────────────────────────────────────────
+function syncHUD(data){
+  const { refresh=0, found=0, elapsed='00:00', max=100, state='idle', task='Arunka', sky=null } = data;
+  const pct = Math.round(refresh/max*100);
+
+  // cluster
+  $('#r-refresh').textContent = refresh;
+  $('#r-found').textContent   = found;
+  $('#r-elapsed').textContent = elapsed;
+  $('#r-max').textContent     = ` /${max}`;
+  if(sky !== null) $('#r-sky').textContent = sky.toLocaleString ? sky.toLocaleString() : sky;
+
+  // gauge ring
+  const ring = $('#sealRing');
+  if(ring) ring.style.strokeDashoffset = RINGC*(1 - refresh/max);
+
+  // seal HUD
+  $('#hud-sub').innerHTML = `refresh <b style="color:var(--sakura)">${refresh}</b>/${max} · found ${found}`;
+  $('#hud-elapsed').textContent = elapsed;
+  if(sky !== null){ $('#s-sky').textContent = sky; }
+
+  // status bar
+  $('#bar-sub').textContent    = `REFRESH ${refresh}/${max} · FOUND ${found}`;
+  $('#bar-pct').textContent    = pct+'%';
+  $('#bar-bar').style.width    = pct+'%';
+  $('#b-elapsed').textContent  = elapsed;
+  if(sky !== null) $('#b-sky').textContent = sky;
+
+  setHUDState(state, task);
+}
+
+function setHUDState(state, task='Arunka'){
+  const labels = {idle:'● idle', running:'● rolling', paused:'❚ paused', done:'✓ done', error:'✕ error'};
+  $('#hud-state').textContent  = labels[state] || '● '+state;
+  $('#hud-task').textContent   = task;
+  $('#bar-state').textContent  = '▮ '+(state.toUpperCase());
+  $('#bar-task').textContent   = task.toUpperCase();
+  $('#bar-task').dataset.t     = task.toUpperCase();
+
+  // cluster status + gauge RPM
+  const stMap = {idle:'IDLE', running:'RUNNING', paused:'PAUSED', done:'DONE', error:'ERROR'};
+  const stEl = $('#r-status'); if(stEl) stEl.textContent = stMap[state]||state.toUpperCase();
+  const gst  = $('#g-st');     if(gst)  gst.textContent  = state==='running'?'ROLL':state==='done'?'DONE':'READY';
+  _rpmTarget = state==='running' ? 0.65 + Math.random()*0.25 : 0;
+}
+
+// ─── Python → JS callbacks (window.arunka) ────────────────────────────────────
+window.arunka = {
+
+  log(ts, level, tag, msg){
+    const t = $('#terminal'); if(!t) return;
+    const row = document.createElement('div');
+    row.className = 'logline'; row.dataset.lv = level;
+    const lvMap = {ok:'ok', info:'info', warn:'warn', err:'err', debug:'info', success:'ok', warning:'warn', error:'err', critical:'err'};
+    const lv = lvMap[level] || 'info';
+    row.innerHTML = `<span class="ts">${ts}</span><span class="lv ${lv}">${lv.toUpperCase()}</span><span class="tag">[${tag}]</span><span class="msg">${msg}</span>`;
+
+    // apply current filter
+    const active = $('.lfilter b.on');
+    const f = active ? active.dataset.lf : 'ALL';
+    if(f !== 'ALL' && lv.toUpperCase() !== f) row.style.display = 'none';
+
+    t.appendChild(row);
+    if(_autoscroll) t.scrollTop = t.scrollHeight;
+    while(t.children.length > 200) t.removeChild(t.firstChild);
+  },
+
+  shopProgress(data){
+    _shopRunning = true;
+    syncHUD({...data, state: _shopPaused ? 'paused' : 'running', task:'Secret Shop'});
+  },
+
+  shopState(state){
+    if(state === 'running'){ _shopRunning=true; _shopPaused=false; }
+    if(state === 'paused') { _shopPaused=true; }
+    if(state === 'done' || state === 'error'){ _shopRunning=false; _shopPaused=false; _rpmTarget=0; }
+    setHUDState(state, 'Secret Shop');
+
+    const btn = $('#runbtn');
+    if(state === 'running'){ btn.textContent='❚❚ Pause'; btn.classList.add('stop'); btn.classList.remove('paused'); }
+    else if(state === 'paused'){ btn.textContent='▶ Resume'; btn.classList.remove('stop'); btn.classList.add('paused'); }
+    else { btn.textContent='▶ Run Shop Rolling'; btn.classList.remove('stop','paused'); _rpmTarget=0; }
+  },
+
+  dailiesState(state){
+    _dailiesRunning = (state === 'running');
+    const btn = $('#dailies-runbtn');
+    if(state==='running'){ btn.textContent='■ Stop Dailies'; btn.classList.add('stop'); }
+    else { btn.textContent='▶ Run Dailies'; btn.classList.remove('stop'); }
+    setHUDState(state, 'Dailies');
+  },
+
+  adbStatus(connected, serial){
+    const dot  = $('#adb-dot');
+    const text = $('#adb-status-text');
+    const chip = $('#device-chip');
+    if(connected){
+      dot.className  = 'status-dot ok';
+      text.textContent = serial + ' connected';
+      text.style.color = 'var(--jade)';
+      chip.innerHTML = `<i class="ico gn"></i>${serial}`;
+      chip.style.borderColor = 'var(--jade)';
+      chip.style.color       = 'var(--jade)';
+    } else {
+      dot.className  = 'status-dot';
+      text.textContent = 'not connected';
+      text.style.color = 'var(--muted)';
+      chip.textContent = '—';
+      chip.style.borderColor = '';
+      chip.style.color       = 'var(--muted)';
+    }
+  },
+
+  templateStatus(status){
+    let ok=0, total=0;
+    for(const [k,v] of Object.entries(status)){
+      const dot = $(`#dot-${k}`); if(!dot) continue;
+      total++;
+      if(v){ ok++; dot.className='dot ok'; } else { dot.className='dot miss'; }
+    }
+    const chip = $('#templates-count');
+    if(chip) chip.textContent = `${ok} / ${total}`;
+  },
+};
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+function connectAdb(){
+  const host = $('#cfg-adb-host').value;
+  const port = $('#cfg-adb-port').value;
+  const path = $('#cfg-adb-path').value;
+  const bspath = $('#cfg-bs-path').value;
+
+  // Save config first
+  api('save_settings', {adb:{host,port:parseInt(port),adb_path:path,emulator_exe:bspath}})
+    .then(() => api('connect_adb'))
+    .then(r => {
+      if(r.ok){ window.arunka.adbStatus(true, r.serial); }
+      else { window.arunka.adbStatus(false, null); alert('ADB connect failed: '+r.error); }
+    });
+}
+
+function launchBluestacks(){
+  api('launch_bluestacks').then(r => {
+    if(!r.ok) alert('Launch failed: '+r.error);
+  });
+}
+
+function browseFile(id){
+  // pywebview exposes a native file dialog
+  if(window.pywebview){
+    const result = window.pywebview.api.open_file_dialog ? null : null;
+    // Fallback: open input[type=file] temporarily
+  }
+  // Use a hidden input as fallback
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.exe,*';
+  inp.onchange = () => { if(inp.files[0]) document.getElementById(id).value = inp.files[0].path||inp.files[0].name; };
+  inp.click();
+}
+
+// ─── Calibration ─────────────────────────────────────────────────────────────
+function loadTemplateStatus(){
+  api('get_template_status').then(status => {
+    window.arunka.templateStatus(status);
+  });
+}
+
+function refreshScreenshot(){
+  api('get_screenshot').then(r => {
+    const img  = $('#preview-img');
+    const ph   = $('#preview-placeholder');
+    if(r.ok){
+      img.src = 'data:image/jpeg;base64,'+r.image;
+      img.style.display='block'; ph.style.display='none';
+    } else {
+      ph.textContent = 'Error: '+r.error; ph.style.display='flex'; img.style.display='none';
+    }
+  });
+}
+
+function captureTemplate(name){
+  window.arunka.log(new Date().toTimeString().slice(0,8),'info','calib',
+    `Ready to capture "${name}" — drag a region on the screenshot`);
+  // TODO: implement drag-to-capture overlay on preview-img
+  // For now, mark as a user instruction
+}
+
+function recordNavPoint(name){
+  window.arunka.log(new Date().toTimeString().slice(0,8),'info','calib',
+    `Ready to record "${name}" — click the point on the screenshot`);
+}
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
+function loadRoutes(){
+  api('get_routes').then(data => {
+    _routes    = data.routes    || {};
+    _navPoints = data.nav_points || [];
+    renderRouteList();
+    renderNavPointSelect();
+  });
+}
+
+function renderRouteList(){
+  const list = $('#routes-list'); if(!list) return;
+  list.innerHTML = '';
+  const names = Object.keys(_routes);
+  if(!names.length){ list.innerHTML='<div style="color:var(--muted);font-family:var(--tech);font-size:12px;">No routes saved</div>'; return; }
+  names.forEach(name => {
+    const route = _routes[name];
+    const steps = Array.isArray(route) ? route : (route.steps||[]);
+    const el = document.createElement('div');
+    el.className = 'runitem' + (name===_selectedRoute?' on':'');
+    el.innerHTML = `<div><div class="t">${name}</div><div class="s">${steps.length} steps</div></div><span class="arrow">▸</span>`;
+    el.addEventListener('click', () => selectRoute(name));
+    list.appendChild(el);
+  });
+}
+
+function renderNavPointSelect(){
+  const sel = $('#step-select'); if(!sel) return;
+  sel.innerHTML = '<option value="">— select nav point —</option>';
+  _navPoints.forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
+  // also add delay option
+  sel.innerHTML += '<option value="wait:0.6">delay · 0.6s</option>';
+}
+
+function selectRoute(name){
+  _selectedRoute = name;
+  const route = _routes[name] || {};
+  const steps = Array.isArray(route) ? route : (route.steps||[]);
+  const desc  = Array.isArray(route) ? '' : (route.description||'');
+  $('#route-name').value  = name;
+  $('#route-desc').value  = desc;
+  _currentSteps = [...steps];
+  renderSteps();
+  renderRouteList();
+}
+
+function renderSteps(){
+  const list = $('#steps-list'); if(!list) return;
+  list.innerHTML = '';
+  _currentSteps.forEach((s,i) => {
+    const el = document.createElement('div');
+    el.className='step';
+    const kind = s.startsWith('wait') ? 'wait' : 'nav';
+    el.innerHTML=`<span class="idx">${i+1}</span><span class="kindtag">${kind}</span><span class="nm">${s}</span><span class="sctrl"><button class="navsq" onclick="moveStep(${i},-1)">▲</button><button class="navsq" onclick="moveStep(${i},1)">▼</button><button class="navsq" onclick="removeStep(${i})">✕</button></span>`;
+    list.appendChild(el);
+  });
+}
+
+function addStep(){
+  const v = $('#step-select').value;
+  if(!v) return;
+  _currentSteps.push(v);
+  renderSteps();
+}
+function removeStep(i){ _currentSteps.splice(i,1); renderSteps(); }
+function moveStep(i,dir){
+  const j=i+dir; if(j<0||j>=_currentSteps.length) return;
+  [_currentSteps[i],_currentSteps[j]]=[_currentSteps[j],_currentSteps[i]];
+  renderSteps();
+}
+function newRoute(){ _selectedRoute=null; $('#route-name').value=''; $('#route-desc').value=''; _currentSteps=[]; renderSteps(); renderRouteList(); }
+function deleteRoute(){
+  if(!_selectedRoute) return;
+  if(!confirm(`Delete route "${_selectedRoute}"?`)) return;
+  api('delete_route', _selectedRoute).then(() => { delete _routes[_selectedRoute]; _selectedRoute=null; renderRouteList(); });
+}
+function saveRoute(){
+  const name = $('#route-name').value.trim().replace(/\s+/g,'_');
+  const desc = $('#route-desc').value.trim();
+  if(!name){ alert('Route needs a name'); return; }
+  api('save_route', name, desc, _currentSteps).then(r => {
+    if(r.ok){ _routes[name]={steps:_currentSteps,description:desc}; _selectedRoute=name; renderRouteList(); }
+  });
+}
+
+// ─── Secret Shop ─────────────────────────────────────────────────────────────
+function getShopConfig(){
+  return {
+    refresh_limit:    parseInt($('#maxref').textContent) || 100,
+    buy_bookmarks:    $('#chk-bookmarks').classList.contains('on'),
+    buy_mystic_medals:$('#chk-mystic').classList.contains('on'),
+    click_delay:      parseFloat($('#t-click').value)||0.15,
+    navigation_delay: parseFloat($('#t-nav').value)||0.6,
+    scroll_amount:    parseFloat($('#t-scroll').value)||0.35,
+    scroll_duration:  parseFloat($('#t-scrolld').value)||0.3,
+  };
+}
+
+function toggleShop(){
+  if(_shopRunning){ api('pause_shop').then(r => window.arunka.shopState(r.state)); }
+  else { api('start_shop', getShopConfig()).then(r => { if(!r.ok) alert(r.error); }); }
+}
+
+function resetShop(){ api('stop_shop').then(() => { _shopRunning=false; _shopPaused=false; syncHUD({state:'idle'}); window.arunka.shopState('idle'); }); }
+
+function saveShopSettings(){
+  api('save_settings',{ secret_shop:{ refresh_limit:parseInt($('#maxref').textContent)||100,
+    buy_bookmarks:$('#chk-bookmarks').classList.contains('on'), buy_mystic_medals:$('#chk-mystic').classList.contains('on'),
+    enabled:$('#chk-history').classList.contains('on') },
+    timing:{ click_delay:parseFloat($('#t-click').value), navigation_delay:parseFloat($('#t-nav').value),
+             scroll_amount:parseFloat($('#t-scroll').value), scroll_duration:parseFloat($('#t-scrolld').value) }
+  }).then(() => window.arunka.log(new Date().toTimeString().slice(0,8),'ok','config','Settings saved'));
+}
+
+function hudPause(){ if(_shopRunning) api('pause_shop').then(r => window.arunka.shopState(r.state)); }
+function hudStop() { if(_shopRunning) api('stop_shop'); else if(_dailiesRunning) api('stop_dailies'); }
+
+// ─── Dailies ─────────────────────────────────────────────────────────────────
+function toggleDailies(){
+  if(_dailiesRunning){ api('stop_dailies'); }
+  else {
+    const sel = {
+      missions:   $('#d-missions').classList.contains('on'),
+      mailbox:    $('#d-mailbox').classList.contains('on'),
+      reputation: $('#d-reputation').classList.contains('on'),
+    };
+    api('start_dailies', sel).then(r => { if(!r.ok) alert(r.error); });
+  }
+}
+
+// ─── History ─────────────────────────────────────────────────────────────────
+function loadHistory(){
+  api('get_runs').then(data => {
+    const runs = data.runs || [];
+    const size = data.total_size || '—';
+    $('#history-size').textContent = `${runs.length} · ${size}`;
+    const list = $('#history-runs-list'); if(!list) return;
+    list.innerHTML = '';
+    if(!runs.length){ list.innerHTML='<div style="color:var(--muted);font-family:var(--tech);font-size:12px;">No history yet</div>'; return; }
+    runs.forEach(run => {
+      const el = document.createElement('div');
+      el.className='runitem';
+      const label = (run.id||'').replace('_',' · ').replace(/-/g,':');
+      el.innerHTML=`<div><div class="t">${label}</div><div class="s">${run.rolls||0} rolls · ${run.bought||0} bought</div></div><span class="arrow">▸</span>`;
+      el.addEventListener('click', () => selectRun(run));
+      list.appendChild(el);
+    });
+  });
+}
+
+function selectRun(runSummary){
+  $$('#history-runs-list .runitem').forEach(x=>x.classList.remove('on'));
+  event.currentTarget?.classList.add('on');
+  api('get_run_detail', runSummary.id).then(detail => {
+    const rolls = detail.rolls || [];
+    _currentRun  = { run_id: runSummary.id, rolls };
+    _currentRoll = 0;
+    showRoll(0);
+    $('#roll-outcome').style.display = rolls.length ? 'block' : 'none';
+  });
+}
+
+function showRoll(idx){
+  if(!_currentRun) return;
+  const rolls = _currentRun.rolls;
+  if(!rolls.length){ $('#roll-counter').textContent='Roll — / —'; return; }
+  idx = Math.max(0, Math.min(rolls.length-1, idx));
+  _currentRoll = idx;
+  const roll = rolls[idx];
+  $('#roll-counter').textContent = `Roll ${idx+1} / ${rolls.length}`;
+  const filename = _rollHalf === 'top' ? roll.top_img : roll.bottom_img;
+  api('get_roll_image', _currentRun.run_id, filename).then(b64 => {
+    const img=document.getElementById('roll-img'), ph=document.getElementById('roll-placeholder');
+    if(b64){ img.src='data:image/jpeg;base64,'+b64; img.style.display='block'; ph.style.display='none'; }
+    else   { img.style.display='none'; ph.textContent='No image for this roll'; ph.style.display='flex'; }
+  });
+  if(roll){
+    const out = roll.outcome||'—';  // roll.n is the roll number
+    $('#roll-outcome-text').innerHTML=`<span style="color:var(--gold)">${out}</span>&nbsp; <span style="color:var(--muted)">Found:</span> ${roll.found||0} &nbsp;<span style="color:var(--muted)">Bought:</span> ${roll.bought||0}`;
+    $('#roll-outcome').style.display='block';
+  }
+}
+
+function prevRoll(){ if(_currentRun) showRoll(_currentRoll-1); }
+function nextRoll(){ if(_currentRun) showRoll(_currentRoll+1); }
+
+function switchHalf(half){
+  _rollHalf = half;
+  $('#seg-top').classList.toggle('on', half==='top');
+  $('#seg-bot').classList.toggle('on', half==='bottom');
+  if(_currentRun) showRoll(_currentRoll);
+}
+
+function deleteCurrentRoll(){
+  if(!_currentRun||!_currentRun.rolls.length) return;
+  if(!confirm('Delete this roll?')) return;
+  // TODO: api call once delete_roll is implemented
+}
+
+function deleteCurrentRun(){
+  if(!_currentRun) return;
+  if(!confirm('Delete this entire run?')) return;
+  api('delete_run', _currentRun.run_id).then(() => { _currentRun=null; loadHistory(); });
+}
+
+function clearHistory(){ if(!confirm('Clear all history?')) return; api('clear_history').then(() => loadHistory()); }
+function exportCsv(){
+  if(!_currentRun) return;
+  api('export_run_csv', _currentRun.run_id).then(r => { if(r.ok) alert('CSV saved to: '+r.path); });
+}
+
+// ─── Logs ─────────────────────────────────────────────────────────────────────
+function clearLogs(){ const t=$('#terminal'); if(t) t.innerHTML=''; }
+function toggleAutoscroll(){
+  _autoscroll = !_autoscroll;
+  const box=$('#autoscroll-box');
+  box.classList.toggle('on',_autoscroll);
+  box.textContent = _autoscroll ? '✓' : '';
+}
+
+// ─── pywebview API helper ─────────────────────────────────────────────────────
+function api(method, ...args){
+  if(window.pywebview && window.pywebview.api){
+    return window.pywebview.api[method](...args);
+  }
+  // Fallback for browser testing (no-op Promise)
+  console.warn('[api] pywebview not ready, called:', method, args);
+  return Promise.resolve({ok:false,error:'pywebview not ready'});
+}
+
+// ─── Init (runs after pywebview is ready) ─────────────────────────────────────
+function init(){
+  // Load settings into form fields
+  api('get_settings').then(s => {
+    const adb = s.adb || {};
+    if(adb.host)         $('#cfg-adb-host').value = adb.host;
+    if(adb.port)         $('#cfg-adb-port').value = adb.port;
+    if(adb.adb_path)     $('#cfg-adb-path').value = adb.adb_path;
+    if(adb.emulator_exe) $('#cfg-bs-path').value  = adb.emulator_exe;
+    const ss = s.secret_shop || {};
+    if(ss.refresh_limit) $('#maxref').textContent  = ss.refresh_limit;
+    if(ss.buy_bookmarks    === false){ const b=$('#chk-bookmarks'); b.classList.remove('on'); b.textContent=''; }
+    if(ss.buy_mystic_medals=== false){ const b=$('#chk-mystic');    b.classList.remove('on'); b.textContent=''; }
+    const t = s.timing || {};
+    if(t.click_delay)       $('#t-click').value  = t.click_delay;
+    if(t.navigation_delay)  $('#t-nav').value    = t.navigation_delay;
+    if(t.scroll_amount)     $('#t-scroll').value = t.scroll_amount;
+    if(t.scroll_duration)   $('#t-scrolld').value= t.scroll_duration;
+  });
+
+  // Check ADB status
+  api('get_adb_status').then(r => window.arunka.adbStatus(r.connected, r.serial));
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+setTheme(localStorage.getItem('arunka-theme') || 'dark');
+setWinMode(localStorage.getItem('arunka-winmode') || 'seal');
+show(localStorage.getItem('arunka-tab') || 'shop');
+paintGauge();
+
+// pywebview fires this event when the Python API is bound
+window.addEventListener('pywebviewready', init);
+// In dev (opening HTML in browser directly), init after a tick
+if(!window.pywebview) setTimeout(init, 100);
+</script>
+</body>
+</html>

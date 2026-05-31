@@ -1,0 +1,120 @@
+/* =========================================================
+   ARUNKA — Windshield (C) APP SHELL
+   Layered on top of arunka-tech.css. Activated by body[data-shell="c"].
+   Glass floating nav, ambient Arunka art (varies per page), glass panels.
+   ========================================================= */
+
+body[data-shell="c"]{
+  background:
+    radial-gradient(1100px 760px at 82% 38%, rgba(40,14,24,.55), transparent 64%),
+    radial-gradient(900px 560px at -6% 110%, rgba(79,227,224,.05), transparent 58%),
+    #06080c;
+}
+
+/* ---- character pink glow (behind Arunka) ---- */
+.char-glow{ position:fixed; z-index:0; top:46%; right:6%; width:680px; height:680px; transform:translateY(-50%);
+  background:radial-gradient(circle, rgba(240,88,140,.5), rgba(240,88,140,.16) 42%, transparent 68%);
+  filter:blur(6px); pointer-events:none; transition:opacity .5s ease, right .5s ease, left .5s ease; opacity:0; }
+.char-glow.show{ opacity:1; }
+body[data-shell="c"][data-amb="left"] .char-glow{ right:auto; left:6%; }
+
+/* ---- ambient Arunka art (prominent, right side, more room) ---- */
+.ambient{ position:fixed; z-index:0; bottom:0; height:100vh; max-height:1000px; pointer-events:none;
+  opacity:0; transition:opacity .5s ease, transform .5s ease, left .5s ease, right .5s ease;
+  filter:drop-shadow(0 0 70px rgba(240,88,140,.5)); will-change:opacity;
+  mix-blend-mode:screen; /* makes the black background transparent over the dark app bg */ }
+.ambient.show{ opacity:.82; }
+.ambient.right{ right:-30px; left:auto; transform:scaleX(1); }
+.ambient.left{ left:-40px; right:auto; transform:scaleX(-1); }       /* mirror to face inward */
+.ambient.faint{ opacity:.4; }
+.ambient.small{ height:78vh; }
+/* scrims keep text legible over the art — content lives on the left */
+.ambient-scrim{ position:fixed; inset:0; z-index:0; pointer-events:none; transition:background .5s ease; }
+body[data-shell="c"][data-amb="right"] .ambient-scrim{ background:linear-gradient(90deg, #06080c 52%, rgba(6,8,12,.6) 68%, rgba(6,8,12,.1) 84%, rgba(6,8,12,0) 100%); }
+body[data-shell="c"][data-amb="left"]  .ambient-scrim{ background:linear-gradient(270deg, #06080c 50%, rgba(6,8,12,.6) 66%, rgba(6,8,12,.1) 82%, rgba(6,8,12,0) 100%); }
+/* drifting petals layer */
+.petal-field{ position:fixed; inset:0 0 auto 0; height:100vh; z-index:0; pointer-events:none; overflow:hidden; }
+.pf-petal{ position:absolute; top:-20px; width:11px; height:11px; background:radial-gradient(circle at 30% 30%,#ffd9e4,#f3a9c2);
+  border-radius:80% 0 80% 0; opacity:0; animation:pfall linear infinite; }
+@keyframes pfall{ 0%{ transform:translateY(-20px) rotate(0); opacity:0; } 10%{ opacity:.8; } 100%{ transform:translateY(102vh) translateX(80px) rotate(420deg); opacity:0; } }
+
+/* ================= SINGLE PERSISTENT NAV (gear-selector) ================= */
+.topnav{ position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:14px;
+  padding:11px 40px; background:linear-gradient(180deg, rgba(8,11,16,.96), rgba(8,11,16,.78));
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
+.topnav::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+  background:linear-gradient(90deg, transparent, var(--crimson) 30%, var(--ice) 70%, transparent); opacity:.55; }
+.navbrand{ display:none; }
+
+/* the beloved gear-selector segment list — left-aligned with the page title below */
+.gearnav{ display:flex; gap:2px; margin:0; padding:5px; border:1px solid var(--line);
+  background:rgba(8,11,16,.55); clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%); }
+.gearnav .tab{ border:1px solid transparent; }
+.navsettings{ flex:none; margin-left:auto; width:38px; height:38px; border:1px solid var(--line-2); background:rgba(240,88,140,.08);
+  color:var(--crimson-br); font-size:16px; cursor:pointer; transition:.15s;
+  clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px); }
+.navsettings:hover{ background:var(--crimson); color:#fff; }
+.navsettings.on{ background:var(--crimson); color:#fff; border-color:var(--crimson-br); }
+
+/* ---- content hugs the left; Arunka gets the right ---- */
+/* Width = 58vw so content scales with the window; cap at 1200px on very wide screens */
+body[data-shell="c"] .view{ width:58vw; max-width:1200px; min-width:520px; margin:0; padding:24px 40px 110px; box-sizing:border-box; }
+body[data-shell="c"][data-amb="left"] .view{ margin-left:auto; margin-right:0; }
+
+/* legacy glass-nav rules (unused, kept harmless) */
+body[data-shell="c"] .brandbar{ display:none; }
+
+/* ---- glass panels everywhere ---- */
+body[data-shell="c"] .panel{
+  background:linear-gradient(180deg, rgba(18,22,30,.62), rgba(10,13,19,.6));
+  backdrop-filter:blur(12px); border-color:rgba(247,216,224,.14);
+  box-shadow:0 12px 40px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.04);
+}
+body[data-shell="c"] .view-head h1{ text-shadow:0 2px 24px rgba(0,0,0,.6); }
+/* reserve room so the pinned Status Bar never covers the last card */
+body[data-shell="c"][data-mode="bar"] .view{ padding-bottom:150px; }
+
+/* keep dark capture frames opaque on glass */
+body[data-shell="c"] .darkframe, body[data-shell="c"] .preview-stage, body[data-shell="c"] .terminal{
+  backdrop-filter:none; }
+
+/* ---- compact telemetry strip (glass) sits under the title on Secret Shop ---- */
+.glassstat{ display:inline-flex; flex-wrap:wrap; gap:0; margin:2px 0 4px; border:1px solid rgba(247,216,224,.16);
+  background:rgba(12,16,23,.5); backdrop-filter:blur(12px); clip-path:polygon(10px 0,100% 0,100% 100%,0 100%,0 10px); }
+.glassstat .gs{ padding:11px 18px; border-right:1px solid rgba(247,216,224,.1); }
+.glassstat .gs:last-child{ border-right:0; }
+.glassstat .k{ font-family:var(--tech); font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+.glassstat .v{ font-family:var(--tech); font-weight:700; font-size:20px; margin-top:3px; color:#fff; white-space:nowrap; }
+.glassstat .v.pink{ color:var(--crimson-br); } .glassstat .v.ice{ color:var(--ice); } .glassstat .v.gold{ color:var(--gold); }
+
+/* ---- run button compact at the top of a card ---- */
+.runbtn.compact{ width:100%; margin:0 0 14px; padding:13px; font-size:14px; letter-spacing:.18em; }
+.cardhd .runmini{ margin-left:auto; }
+
+/* ---- settings segmented controls (theme + HUD) ---- */
+.optrow{ display:flex; align-items:center; justify-content:space-between; gap:18px; padding:14px 0; border-bottom:1px solid var(--line); }
+.optrow label{ font-size:13.5px; color:var(--bone); font-family:var(--ui); }
+.segset{ display:flex; gap:2px; padding:4px; border:1px solid var(--line-2); background:rgba(0,0,0,.28);
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); }
+.segset button{ font-family:var(--display); font-weight:600; text-transform:uppercase; letter-spacing:.05em; font-size:12px;
+  color:var(--muted); border:0; background:transparent; padding:7px 15px; cursor:pointer; transition:.15s; white-space:nowrap; }
+.segset button.on{ color:#fff; background:linear-gradient(180deg,var(--crimson),var(--crimson-dk)); box-shadow:0 0 12px rgba(240,88,140,.4); }
+body[data-theme="light"] .segset{ background:rgba(232,80,136,.06); }
+body[data-theme="light"] .segset button{ color:var(--muted); }
+
+/* white theme tweaks for the shell */
+body[data-theme="light"][data-shell="c"]{
+  background:
+    radial-gradient(1100px 760px at 82% 38%, rgba(210,79,124,.12), transparent 64%),
+    linear-gradient(180deg, #efe3e6, #e7dade);
+}
+body[data-theme="light"][data-shell="c"][data-amb="right"] .ambient-scrim{ background:linear-gradient(90deg, #efe3e6 28%, rgba(239,227,230,.5) 56%, rgba(239,227,230,.05) 74%); }
+body[data-theme="light"][data-shell="c"][data-amb="left"]  .ambient-scrim{ background:linear-gradient(270deg, #efe3e6 26%, rgba(239,227,230,.5) 54%, rgba(239,227,230,.05) 74%); }
+body[data-theme="light"][data-shell="c"][data-amb="none"]  .ambient-scrim{ background:linear-gradient(180deg, rgba(239,227,230,.15), rgba(239,227,230,.5)); }
+body[data-theme="light"][data-shell="c"] .cnav{ background:rgba(247,237,240,.7); border-color:rgba(150,90,115,.2); }
+body[data-theme="light"][data-shell="c"] .panel{ background:linear-gradient(180deg, rgba(252,246,248,.72), rgba(245,234,238,.7)); border-color:rgba(150,90,115,.18); box-shadow:0 12px 40px rgba(150,90,115,.16); }
+body[data-theme="light"][data-shell="c"] .subnav{ background:rgba(247,237,240,.7); }
+body[data-theme="light"][data-shell="c"] .glassstat{ background:rgba(247,237,240,.6); border-color:rgba(150,90,115,.2); }
+body[data-theme="light"][data-shell="c"] .glassstat .v{ color:#2e1f27; }
+body[data-theme="light"] .ambient{ filter:drop-shadow(0 0 50px rgba(210,79,124,.28)); mix-blend-mode:multiply; opacity:.55; }
+/* multiply in light mode: black areas darken the light bg slightly instead of showing as solid black */

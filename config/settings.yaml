@@ -1,0 +1,27 @@
+adb:
+  adb_path: C:\Program Files\BlueStacks_nxt\HD-Adb.exe
+  emulator_exe: C:/Program Files/BlueStacks_nxt/HD-Player.exe
+  host: localhost
+  port: 5555
+bot:
+  tasks:
+    dailies: true
+    secret_shop: true
+history:
+  enabled: true
+  jpeg_quality: 85
+secret_shop:
+  buy_bookmarks: true
+  buy_mystic_medals: true
+  enabled: true
+  item_threshold: 0.88
+  max_item_cost: 180
+  refresh_limit: 100
+timing:
+  click_delay: 0.1
+  loading_timeout: 10.0
+  navigation_delay: 0.1
+  scroll_amount: 0.35
+  scroll_duration: 0.3
+vision:
+  fast_scale_first: null

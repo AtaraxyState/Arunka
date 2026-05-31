@@ -1,0 +1,447 @@
+"""
+Arunka — Python API exposed to the pywebview frontend.
+
+Every public method on ArunkaAPI becomes callable from JS as:
+    window.pywebview.api.method_name(args)   → returns a Promise
+
+Python → JS push is done via:
+    self._js('window.arunka.callback(data)')
+
+Threading model:
+    - pywebview calls API methods on background threads (one per call)
+    - task loops (_run_shop, _run_dailies) run on dedicated daemon threads
+    - _js() is thread-safe (pywebview buffers evaluate_js internally)
+"""
+
+import threading
+import json
+import base64
+import time
+from pathlib import Path
+from loguru import logger
+from config import cfg, save_cfg
+
+
+class ArunkaAPI:
+    def __init__(self):
+        self._window      = None
+        self._log_sink_id = None
+
+        # shop state
+        self._shop_thread  = None
+        self._shop_stop    = threading.Event()
+        self._shop_pause   = threading.Event()
+        self._shop_refresh = 0
+        self._shop_found   = 0
+        self._shop_t0      = 0.0
+        self._shop_running = False   # True while task thread is active
+        self._shop_sky     = None    # last known skystone count
+
+        # dailies state
+        self._dailies_thread = None
+        self._dailies_stop   = threading.Event()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Lifecycle
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def set_window(self, window):
+        """Called after pywebview creates the window."""
+        self._window = window
+        # Forward all loguru output to the frontend terminal
+        self._log_sink_id = logger.add(
+            self._loguru_sink,
+            format="{time:HH:mm:ss} {level} {name} {message}",
+            level="DEBUG",
+        )
+
+    def _js(self, code: str):
+        """Fire-and-forget JS evaluation."""
+        if self._window:
+            try:
+                self._window.evaluate_js(code)
+            except Exception:
+                pass
+
+    def _loguru_sink(self, message):
+        # loguru passes a Message object (string subclass); the dict lives at .record
+        record = message.record
+        ts    = record["time"].strftime("%H:%M:%S")
+        level = record["level"].name.lower()
+        lv_map = {"success": "ok", "warning": "warn", "error": "err",
+                  "critical": "err", "debug": "info"}
+        lv = lv_map.get(level, level)
+        name = record["name"].split(".")[-1] if record["name"] else "bot"
+        tag_map = {"secret_shop": "shop", "dailies": "dailies",
+                   "navigator": "nav", "vision": "vision",
+                   "adb": "adb", "window": "window", "input": "input"}
+        tag = tag_map.get(name, name)
+        msg  = record["message"]
+
+        # Detect successful purchases to increment found counter
+        if msg.startswith("Bought:") and self._shop_running:
+            self._shop_found += 1
+            self._push_shop_progress()
+
+        code = (
+            f"window.arunka&&window.arunka.log("
+            f"{json.dumps(ts)},{json.dumps(lv)},"
+            f"{json.dumps(tag)},{json.dumps(msg)})"
+        )
+        self._js(code)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Settings
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_settings(self):
+        return dict(cfg)
+
+    def save_settings(self, data: dict):
+        for section, values in data.items():
+            if isinstance(values, dict):
+                cfg.setdefault(section, {}).update(values)
+            else:
+                cfg[section] = values
+        save_cfg()
+        logger.success("Settings saved")
+        return {"ok": True}
+
+    def connect_adb(self):
+        from bot import adb
+        try:
+            device = adb.connect()
+            serial = device.serial
+            logger.success(f"ADB connected · {serial}")
+            return {"ok": True, "serial": serial}
+        except Exception as e:
+            logger.error(f"ADB connect failed: {e}")
+            return {"ok": False, "error": str(e)}
+
+    def launch_bluestacks(self):
+        from bot import launcher
+        try:
+            launcher.start_bluestacks()
+            return {"ok": True}
+        except Exception as e:
+            logger.error(f"Launch BlueStacks failed: {e}")
+            return {"ok": False, "error": str(e)}
+
+    def get_adb_status(self):
+        from bot import adb
+        try:
+            device = adb.get_device()
+            if device:
+                return {"connected": True, "serial": device.serial}
+        except Exception:
+            pass
+        return {"connected": False, "serial": None}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Calibration
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_template_status(self):
+        """Return dict of template_name → bool (file exists)."""
+        tdir = Path("assets/templates")
+        templates = [
+            "shop_refresh_btn", "shop_confirm_refresh_btn",
+            "shop_buy_btn", "shop_confirm_buy_btn",
+            "item_covenant_bookmark", "item_mystic_medal",
+            "daily_missions_tab", "daily_claim_all_btn",
+            "mailbox_tab", "mailbox_claim_all_btn",
+            "reputation_tab", "reputation_claim_btn",
+        ]
+        nav_keys = [
+            "nav_lobby", "nav_shop_tab", "nav_secret_shop",
+            "nav_daily_tab", "nav_mailbox", "nav_reputation",
+        ]
+
+        nav_path = Path("assets/nav_points.json")
+        nav_data = {}
+        if nav_path.exists():
+            with open(nav_path) as f:
+                nav_data = json.load(f)
+
+        status = {t: (tdir / f"{t}.png").exists() for t in templates}
+        status.update({k: k in nav_data for k in nav_keys})
+        return status
+
+    def get_screenshot(self):
+        """Capture a live screenshot from the device, return base64 JPEG."""
+        import cv2
+        try:
+            from bot.window import find_window, capture_window
+            hwnd = find_window("")
+            img  = capture_window(hwnd)
+            _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            return {"ok": True, "image": base64.b64encode(buf).decode()}
+        except Exception as e:
+            logger.error(f"Screenshot failed: {e}")
+            return {"ok": False, "error": str(e)}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Routes
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_routes(self):
+        from bot import navigator
+        routes = navigator._load_routes()
+        points = navigator._load_points()
+        return {"routes": routes, "nav_points": list(points.keys())}
+
+    def save_route(self, name: str, description: str, steps: list):
+        from bot import navigator
+        navigator.save_route(name, steps, description)
+        logger.success(f"Route '{name}' saved ({len(steps)} steps)")
+        return {"ok": True}
+
+    def delete_route(self, name: str):
+        from bot import navigator
+        navigator.delete_route(name)
+        logger.info(f"Route '{name}' deleted")
+        return {"ok": True}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Secret Shop
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def start_shop(self, config: dict = None):
+        if self._shop_thread and self._shop_thread.is_alive():
+            # Already running → toggle pause
+            return self.pause_shop()
+
+        # Apply any config overrides from the UI
+        if config:
+            ss = cfg.setdefault("secret_shop", {})
+            for k, v in config.items():
+                if k in ss:
+                    ss[k] = v
+            t = cfg.setdefault("timing", {})
+            for k in ("click_delay", "navigation_delay", "scroll_amount", "scroll_duration"):
+                if k in config:
+                    t[k] = config[k]
+
+        self._shop_stop.clear()
+        self._shop_pause.clear()
+        self._shop_refresh = 0
+        self._shop_found   = 0
+        self._shop_t0      = time.time()
+
+        self._shop_thread = threading.Thread(target=self._run_shop, daemon=True)
+        self._shop_thread.start()
+        return {"ok": True, "state": "running"}
+
+    def pause_shop(self):
+        if self._shop_pause.is_set():
+            self._shop_pause.clear()
+            self._js('window.arunka&&window.arunka.shopState("running")')
+            return {"state": "running"}
+        else:
+            self._shop_pause.set()
+            self._js('window.arunka&&window.arunka.shopState("paused")')
+            return {"state": "paused"}
+
+    def stop_shop(self):
+        self._shop_stop.set()
+        self._shop_pause.clear()
+        return {"ok": True}
+
+    def get_shop_state(self):
+        running = self._shop_thread and self._shop_thread.is_alive()
+        return {
+            "running":  running,
+            "paused":   self._shop_pause.is_set(),
+            "refresh":  self._shop_refresh,
+            "found":    self._shop_found,
+            "elapsed":  int(time.time() - self._shop_t0) if running else 0,
+        }
+
+    def _run_shop(self):
+        from bot.window import find_window, capture_window
+        from bot.tasks  import secret_shop
+        from bot.history import HistoryRecorder
+        import time as _time
+
+        recorder  = None
+        self._shop_running = True
+
+        def should_run():
+            while self._shop_pause.is_set() and not self._shop_stop.is_set():
+                _time.sleep(0.2)
+            return not self._shop_stop.is_set()
+
+        # Background timer: push elapsed + skystone every second
+        def _timer():
+            sky_tick = 0
+            while self._shop_running and not self._shop_stop.is_set():
+                self._push_shop_progress()
+                # Read skystone count from screen every 10 s (expensive)
+                sky_tick += 1
+                if sky_tick >= 10:
+                    sky_tick = 0
+                    try:
+                        screen = capture_window(find_window(""))
+                        sky = self._read_skystone(screen)
+                        if sky is not None:
+                            self._shop_sky = sky
+                    except Exception:
+                        pass
+                _time.sleep(1.0)
+
+        timer = threading.Thread(target=_timer, daemon=True)
+        timer.start()
+
+        try:
+            hist_cfg = cfg.get("history", {})
+            recorder = HistoryRecorder(
+                enabled=hist_cfg.get("enabled", True),
+                jpeg_quality=hist_cfg.get("jpeg_quality", 85),
+            )
+
+            # Patch start_roll to track refresh counter
+            _orig_start_roll = recorder.start_roll
+            api_ref = self
+            def _counted_start_roll(roll_n):
+                api_ref._shop_refresh = roll_n
+                return _orig_start_roll(roll_n)
+            recorder.start_roll = _counted_start_roll
+
+            self._js('window.arunka&&window.arunka.shopState("running")')
+            hwnd = find_window("")
+            secret_shop.run(
+                hwnd,
+                lambda: capture_window(hwnd),
+                should_run=should_run,
+                recorder=recorder,
+            )
+
+            recorder.close("done" if not self._shop_stop.is_set() else "stopped")
+            recorder = None
+            self._js('window.arunka&&window.arunka.shopState("done")')
+
+        except Exception as e:
+            logger.error(f"Shop task error: {e}")
+            if recorder:
+                try:
+                    recorder.close("error")
+                except Exception:
+                    pass
+            self._js('window.arunka&&window.arunka.shopState("error")')
+        finally:
+            self._shop_running = False
+
+    def _read_skystone(self, screen) -> "int | None":
+        """Try to OCR the skystone count from the game screenshot top bar."""
+        try:
+            import pytesseract
+            import cv2
+            h, w = screen.shape[:2]
+            # Crop: right-centre of top bar where skystones appear
+            roi = screen[0:int(h * 0.09), int(w * 0.48):int(w * 0.78)]
+            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            _, thresh = cv2.threshold(gray, 190, 255, cv2.THRESH_BINARY)
+            text = pytesseract.image_to_string(
+                thresh, config="--psm 7 -c tessedit_char_whitelist=0123456789,"
+            )
+            import re
+            nums = [int(n.replace(",", ""))
+                    for n in re.findall(r"\d[\d,]+", text)]
+            # Skystones: 4–6 digits; gold is typically 7–10
+            candidates = [n for n in nums if 100 <= n <= 999_999]
+            return candidates[0] if candidates else None
+        except Exception:
+            return None
+
+    def _push_shop_progress(self):
+        elapsed = int(time.time() - self._shop_t0)
+        mm, ss  = divmod(elapsed, 60)
+        data = json.dumps({
+            "refresh": self._shop_refresh,
+            "found":   self._shop_found,
+            "elapsed": f"{mm:02d}:{ss:02d}",
+            "max":     cfg.get("secret_shop", {}).get("refresh_limit", 100),
+            "sky":     self._shop_sky,
+        })
+        self._js(f'window.arunka&&window.arunka.shopProgress({data})')
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Dailies
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def start_dailies(self, config: dict = None):
+        if self._dailies_thread and self._dailies_thread.is_alive():
+            return {"ok": False, "error": "Already running"}
+        self._dailies_stop.clear()
+        self._dailies_thread = threading.Thread(
+            target=self._run_dailies, args=(config or {},), daemon=True
+        )
+        self._dailies_thread.start()
+        return {"ok": True}
+
+    def stop_dailies(self):
+        self._dailies_stop.set()
+        return {"ok": True}
+
+    def _run_dailies(self, selections: dict):
+        from bot.window import find_window, capture_window
+        from bot.tasks  import dailies
+        try:
+            self._js('window.arunka&&window.arunka.dailiesState("running")')
+            hwnd = find_window("")
+            dailies.run(
+                hwnd,
+                lambda: capture_window(hwnd),
+                selections=selections,
+                should_run=lambda: not self._dailies_stop.is_set(),
+            )
+            self._js('window.arunka&&window.arunka.dailiesState("done")')
+        except Exception as e:
+            logger.error(f"Dailies task error: {e}")
+            self._js('window.arunka&&window.arunka.dailiesState("error")')
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # History
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_runs(self):
+        from bot.history import list_runs, history_size_bytes, human_size
+        try:
+            runs  = list_runs()
+            total = human_size(history_size_bytes())
+            return {"runs": runs, "total_size": total}
+        except Exception as e:
+            return {"runs": [], "total_size": "0 B", "error": str(e)}
+
+    def get_run_detail(self, run_id: str):
+        from bot.history import load_run
+        run = load_run(run_id)
+        return run or {}
+
+    def get_roll_image(self, run_id: str, filename: str):
+        """Return base64-encoded JPEG for a roll image. filename = e.g. 'roll_0001_top.jpg'."""
+        from bot.history import roll_image_path
+        if not filename:
+            return None
+        p = roll_image_path(run_id, filename)
+        if not p or not p.exists():
+            return None
+        with open(p, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+
+    def delete_run(self, run_id: str):
+        from bot.history import delete_run
+        ok = delete_run(run_id)
+        return {"ok": ok}
+
+    def clear_history(self):
+        from bot.history import clear_all
+        ok = clear_all()
+        return {"ok": ok}
+
+    def export_run_csv(self, run_id: str):
+        from bot.history import export_csv
+        p = export_csv(run_id)
+        if p and p.exists():
+            return {"ok": True, "path": str(p)}
+        return {"ok": False}
