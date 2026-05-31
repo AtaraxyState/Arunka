@@ -38,23 +38,29 @@ body[data-shell="c"][data-amb="left"]  .ambient-scrim{ background:linear-gradien
   border-radius:80% 0 80% 0; opacity:0; animation:pfall linear infinite; }
 @keyframes pfall{ 0%{ transform:translateY(-20px) rotate(0); opacity:0; } 10%{ opacity:.8; } 100%{ transform:translateY(102vh) translateX(80px) rotate(420deg); opacity:0; } }
 
-/* ================= SINGLE PERSISTENT NAV (gear-selector) ================= */
-.topnav{ position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:14px;
-  padding:11px 40px; background:linear-gradient(180deg, rgba(8,11,16,.96), rgba(8,11,16,.78));
-  backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
-.topnav::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px;
-  background:linear-gradient(90deg, transparent, var(--crimson) 30%, var(--ice) 70%, transparent); opacity:.55; }
-.navbrand{ display:none; }
+/* ================= h1 row — gearnav lives here, to the right of the title ================= */
 
-/* the beloved gear-selector segment list — left-aligned with the page title below */
-.gearnav{ display:flex; gap:2px; margin:0; padding:5px; border:1px solid var(--line);
-  background:rgba(8,11,16,.55); clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%); }
-.gearnav .tab{ border:1px solid transparent; }
-.navsettings{ flex:none; margin-left:auto; width:38px; height:38px; border:1px solid var(--line-2); background:rgba(240,88,140,.08);
-  color:var(--crimson-br); font-size:16px; cursor:pointer; transition:.15s;
-  clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px); }
+/* .head-row: flex container holding the h1 + gearnav on the same line */
+.head-row{ display:flex; align-items:center; gap:18px; flex-wrap:nowrap; }
+.head-row h1{ flex:none; }
+
+/* Gear-selector tabs — sit to the right of the h1 inside head-row */
+.gearnav{ display:flex; gap:2px; padding:4px; border:1px solid var(--line);
+  background:rgba(8,11,16,.55); clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);
+  margin-left:auto; align-items:center; }
+.gearnav .tab{ border:1px solid transparent; font-size:clamp(11px,1vw,14px); padding:7px clamp(10px,1.2vw,17px); }
+
+/* Settings gear — last item inside gearnav */
+.navsettings{ flex:none; width:34px; height:34px; border:1px solid var(--line-2); background:rgba(240,88,140,.08);
+  color:var(--crimson-br); font-size:14px; cursor:pointer; transition:.15s;
+  clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px); margin-left:6px; }
 .navsettings:hover{ background:var(--crimson); color:#fff; }
 .navsettings.on{ background:var(--crimson); color:#fff; border-color:var(--crimson-br); }
+
+/* No standalone topnav — hide it if still present */
+.topnav{ display:none; }
+
+body[data-shell="c"] .view-head{ margin-bottom:14px; }
 
 /* ---- content hugs the left; Arunka gets the right ---- */
 /* Width = 58vw so content scales with the window; cap at 1200px on very wide screens */
@@ -63,6 +69,10 @@ body[data-shell="c"][data-amb="left"] .view{ margin-left:auto; margin-right:0; }
 
 /* legacy glass-nav rules (unused, kept harmless) */
 body[data-shell="c"] .brandbar{ display:none; }
+
+/* Status bar: hidden unless explicitly shown by JS (setWinMode) */
+.live-bar{ display:none !important; }
+.live-bar.visible{ display:flex !important; }
 
 /* ---- glass panels everywhere ---- */
 body[data-shell="c"] .panel{

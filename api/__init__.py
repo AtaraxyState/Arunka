@@ -25,6 +25,9 @@ from config import cfg, save_cfg
 class ArunkaAPI:
     def __init__(self):
         self._window      = None
+        self._hud_window  = None   # separate always-on-top HUD window
+        self._hud_x       = 40     # tracked position for move_hud_by
+        self._hud_y       = 40
         self._log_sink_id = None
 
         # shop state
@@ -46,22 +49,50 @@ class ArunkaAPI:
     # ─────────────────────────────────────────────────────────────────────────
 
     def set_window(self, window):
-        """Called after pywebview creates the window."""
+        """Called after pywebview creates the main window."""
         self._window = window
-        # Forward all loguru output to the frontend terminal
         self._log_sink_id = logger.add(
             self._loguru_sink,
             format="{time:HH:mm:ss} {level} {name} {message}",
             level="DEBUG",
         )
 
+    def set_hud_window(self, window, x: int = 40, y: int = 40):
+        """Called after the HUD window loads."""
+        self._hud_window = window
+        self._hud_x = x
+        self._hud_y = y
+
     def _js(self, code: str):
-        """Fire-and-forget JS evaluation."""
-        if self._window:
-            try:
-                self._window.evaluate_js(code)
-            except Exception:
-                pass
+        """Push JS to both the main window and the HUD window."""
+        for w in (self._window, self._hud_window):
+            if w:
+                try:
+                    w.evaluate_js(code)
+                except Exception:
+                    pass
+
+    # ── HUD window controls ───────────────────────────────────────────────────
+
+    def move_hud_by(self, dx: int, dy: int):
+        """Called from HUD drag handler — moves the OS window by a delta."""
+        if self._hud_window:
+            self._hud_x += int(dx)
+            self._hud_y += int(dy)
+            self._hud_window.move(self._hud_x, self._hud_y)
+
+    def resize_hud(self, width: int, height: int):
+        """Resize HUD window (used by collapse/expand)."""
+        if self._hud_window:
+            self._hud_window.resize(int(width), int(height))
+
+    def set_hud_visible(self, visible: bool):
+        """Show or hide the floating HUD window (toggled from Settings)."""
+        if self._hud_window:
+            if visible:
+                self._hud_window.show()
+            else:
+                self._hud_window.hide()
 
     def _loguru_sink(self, message):
         # loguru passes a Message object (string subclass); the dict lives at .record
@@ -403,6 +434,8 @@ class ArunkaAPI:
     # ─────────────────────────────────────────────────────────────────────────
     # History
     # ─────────────────────────────────────────────────────────────────────────
+    # History
+    # ─────────────────────────────────────────────────────────────────────────
 
     def get_runs(self):
         from bot.history import list_runs, history_size_bytes, human_size
@@ -419,7 +452,7 @@ class ArunkaAPI:
         return run or {}
 
     def get_roll_image(self, run_id: str, filename: str):
-        """Return base64-encoded JPEG for a roll image. filename = e.g. 'roll_0001_top.jpg'."""
+        """Return base64-encoded JPEG. filename = e.g. \'roll_0001_top.jpg\'."""
         from bot.history import roll_image_path
         if not filename:
             return None

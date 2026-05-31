@@ -23,5 +23,8 @@ timing:
   navigation_delay: 0.1
   scroll_amount: 0.35
   scroll_duration: 0.3
+ui:
+  hud_mode: bar
+  theme: light
 vision:
   fast_scale_first: null

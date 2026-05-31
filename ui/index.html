@@ -35,23 +35,22 @@
 <div class="petal-field" id="petals"></div>
 
 <!-- ============ SINGLE PERSISTENT NAV ============ -->
-<div class="topnav">
-  <nav class="gearnav">
-    <button class="tab" data-v="settings">Settings</button>
-    <button class="tab" data-v="calibration">Calibration</button>
-    <button class="tab" data-v="routes">Routes</button>
-    <button class="tab on" data-v="shop">Secret Shop</button>
-    <button class="tab" data-v="dailies">Dailies</button>
-    <button class="tab" data-v="history">History</button>
-    <button class="tab" data-v="logs">Logs</button>
-  </nav>
-  <button class="navsettings" data-v="settings" title="Settings">⚙</button>
-</div>
+<!-- standalone gearnav — JS moves it into the active view-head each tab switch -->
+<nav class="gearnav" id="gearnav">
+  <button class="tab" data-v="settings">Settings</button>
+  <button class="tab" data-v="calibration">Calibration</button>
+  <button class="tab" data-v="routes">Routes</button>
+  <button class="tab on" data-v="shop">Secret Shop</button>
+  <button class="tab" data-v="dailies">Dailies</button>
+  <button class="tab" data-v="history">History</button>
+  <button class="tab" data-v="logs">Logs</button>
+  <button class="navsettings" data-v="settings" id="navsettings" title="Settings">⚙</button>
+</nav>
 
 <!-- ============ VIEW: SETTINGS ============ -->
 <section class="view" id="v-settings">
   <div class="view-head">
-    <h1 data-kick="system · adb link">Settings <span class="jp">設定</span></h1>
+    <div class="head-row"><h1 data-kick="system · adb link">Settings <span class="jp">設定</span></h1></div>
     <p>Connect Arunka to your BlueStacks emulator over ADB.</p>
   </div>
   <div class="row screenwrap">
@@ -99,21 +98,35 @@
             <button data-theme-set="light">☀ White</button>
           </div>
         </div>
+        </div></div>
+    </div>
+  </div>
+  <div class="row screenwrap">
+    <div class="col panel" style="max-width:520px;">
+      <div class="cardhd">Appearance &amp; HUD</div>
+      <div class="pad">
+        <div class="optrow"><label>Theme</label>
+          <div class="segset" id="themeSeg">
+            <button data-theme-set="dark" class="on">☾ Dark</button>
+            <button data-theme-set="light">☀ White</button>
+          </div>
+        </div>
         <div class="optrow" style="border-bottom:0;"><label>Status window</label>
           <div class="segset" id="hudSeg">
-            <button data-set="seal" class="on">◉ Seal HUD</button>
+            <button data-set="seal" class="on">◉ Floating HUD</button>
             <button data-set="bar">▭ Status Bar</button>
           </div>
         </div>
       </div>
     </div>
   </div>
+
 </section>
 
 <!-- ============ VIEW: CALIBRATION ============ -->
 <section class="view" id="v-calibration">
   <div class="view-head">
-    <h1 data-kick="vision · template + nav capture">Calibration <span class="jp">照準</span></h1>
+    <div class="head-row"><h1 data-kick="vision · template + nav capture">Calibration <span class="jp">照準</span></h1></div>
     <p>Teach Arunka what to look for — drag a box to capture a template, single-click to record a nav point. <span class="hand">cyan = live matches ✦</span></p>
   </div>
   <div class="calib">
@@ -171,7 +184,7 @@
 <!-- ============ VIEW: SECRET SHOP ============ -->
 <section class="view" id="v-shop">
   <div class="view-head">
-    <h1 data-kick="task · config">Secret Shop <span class="jp">秘密商店</span></h1>
+    <div class="head-row"><h1 data-kick="task · config">Secret Shop <span class="jp">秘密商店</span></h1></div>
     <p>Configure what to buy, then hit Run. <span class="hand">Live window keeps you posted →</span></p>
   </div>
 
@@ -232,7 +245,7 @@
 <!-- ============ VIEW: ROUTES ============ -->
 <section class="view" id="v-routes">
   <div class="view-head">
-    <h1 data-kick="navigation · click sequences">Routes <span class="jp">経路</span></h1>
+    <div class="head-row"><h1 data-kick="navigation · click sequences">Routes <span class="jp">経路</span></h1></div>
     <p>Named sequences of nav points so tasks can drive through menus.</p>
   </div>
   <div class="row screenwrap">
@@ -273,7 +286,7 @@
 <!-- ============ VIEW: DAILIES ============ -->
 <section class="view" id="v-dailies">
   <div class="view-head">
-    <h1 data-kick="task · auto-claim">Dailies <span class="jp">日課</span></h1>
+    <div class="head-row"><h1 data-kick="task · auto-claim">Dailies <span class="jp">日課</span></h1></div>
     <p>Select which daily tasks to automate, then run.</p>
   </div>
   <div class="screenwrap panel" style="max-width:680px;">
@@ -290,7 +303,7 @@
 <!-- ============ VIEW: HISTORY ============ -->
 <section class="view" id="v-history">
   <div class="view-head">
-    <h1 data-kick="telemetry · run log">History <span class="jp">記録</span></h1>
+    <div class="head-row"><h1 data-kick="telemetry · run log">History <span class="jp">記録</span></h1></div>
     <p>Recorded rolls — step through each captured frame.</p>
   </div>
   <div class="row screenwrap">
@@ -329,7 +342,7 @@
 <!-- ============ VIEW: LOGS ============ -->
 <section class="view" id="v-logs">
   <div class="view-head">
-    <h1 data-kick="system · live output">Logs <span class="jp">記録</span></h1>
+    <div class="head-row"><h1 data-kick="system · live output">Logs <span class="jp">記録</span></h1></div>
     <p>Live colored output from the bot runtime.</p>
   </div>
   <div class="screenwrap panel">
@@ -349,34 +362,6 @@
   </div>
 </section>
 
-<!-- ============ SEAL HUD ============ -->
-<div class="live-seal" id="liveSeal">
-  <span class="collapse" title="collapse">▢</span>
-  <div class="top">
-    <div class="seal-portrait">
-      <span class="pulse"></span>
-      <svg class="ring" width="80" height="80" viewBox="0 0 80 80" style="position:absolute;inset:0;">
-        <circle class="trk" cx="40" cy="40" r="35" stroke-width="5"/>
-        <circle class="val" id="sealRing" cx="40" cy="40" r="35" stroke-width="5" stroke-dasharray="219.9" stroke-dashoffset="219.9"/>
-      </svg>
-      <div class="face"><img src="assets/arunka.png" alt="Arunka"></div>
-    </div>
-    <div style="flex:1;min-width:0;">
-      <div class="taskstate" id="hud-state">● idle</div>
-      <div class="tasklabel" id="hud-task">Arunka</div>
-      <div style="font-family:var(--tech);font-size:11px;color:var(--muted);margin-top:3px;" id="hud-sub">ready</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
-    <span class="chip"><i class="ico blue"></i><b id="s-sky">—</b></span>
-  </div>
-  <div style="display:flex;gap:7px;margin-top:12px;align-items:center;">
-    <div class="ctrlbtn" id="hud-pause" title="pause/resume" onclick="hudPause()">❚❚</div>
-    <div class="ctrlbtn stop" title="stop" onclick="hudStop()">■</div>
-    <div style="flex:1"></div>
-    <div style="font-family:var(--tech);font-size:11px;color:var(--muted);" id="hud-elapsed">—</div>
-  </div>
-</div>
 
 <!-- ============ STATUS BAR ============ -->
 <div class="live-bar" id="liveBar">
@@ -400,6 +385,7 @@
     <div class="ctrlbtn stop" title="stop" onclick="hudStop()">■</div>
   </div>
 </div>
+
 
 <script>
 /* =====================================================================
@@ -458,32 +444,30 @@ function show(v){
   if(!AMB[v]) v = 'shop';
   $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === v));
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-'+v));
-  $('.navsettings')?.classList.toggle('on', v === 'settings');
+  $('#navsettings')?.classList.toggle('on', v === 'settings');
   localStorage.setItem('arunka-tab', v);
   placeAmbient(v);
+  // Move the gearnav into the active view's h1 row
+  const nav = document.getElementById('gearnav');
+  const headRow = document.querySelector('#v-'+v+' .head-row');
+  if(nav && headRow) headRow.appendChild(nav);
   // Lazy-load tab data
   if(v === 'history')   loadHistory();
   if(v === 'routes')    loadRoutes();
   if(v === 'calibration') loadTemplateStatus();
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => show(t.dataset.v)));
-$('.navsettings')?.addEventListener('click', () => show('settings'));
+$('#navsettings')?.addEventListener('click', () => show('settings'));
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
-function setTheme(t){
+function setTheme(t, save=false){
   document.body.setAttribute('data-theme', t);
   localStorage.setItem('arunka-theme', t);
   $$('[data-theme-set]').forEach(x => x.classList.toggle('on', x.dataset.themeSet === t));
+  if(save) api('save_settings', {ui: {theme: t}});
 }
-$$('[data-theme-set]').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themeSet)));
+$$('[data-theme-set]').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themeSet, true)));
 
-// ── HUD mode ─────────────────────────────────────────────────────────────────
-function setWinMode(m){
-  localStorage.setItem('arunka-winmode', m);
-  $$('[data-set]').forEach(x => x.classList.toggle('on', x.dataset.set === m));
-  document.body.dataset.mode = m;
-}
-$$('[data-set]').forEach(b => b.addEventListener('click', () => setWinMode(b.dataset.set)));
 
 // ── Steppers ─────────────────────────────────────────────────────────────────
 $$('.stepper button[data-step]').forEach(b => b.addEventListener('click', () => {
@@ -549,39 +533,28 @@ function syncHUD(data){
   const { refresh=0, found=0, elapsed='00:00', max=100, state='idle', task='Arunka', sky=null } = data;
   const pct = Math.round(refresh/max*100);
 
-  // cluster
-  $('#r-refresh').textContent = refresh;
-  $('#r-found').textContent   = found;
-  $('#r-elapsed').textContent = elapsed;
-  $('#r-max').textContent     = ` /${max}`;
-  if(sky !== null) $('#r-sky').textContent = sky.toLocaleString ? sky.toLocaleString() : sky;
+  // tachometer cluster (always visible in main window)
+  const rr=$('#r-refresh'); if(rr) rr.textContent = refresh;
+  const rf=$('#r-found');   if(rf) rf.textContent = found;
+  const re=$('#r-elapsed'); if(re) re.textContent = elapsed;
+  const rm=$('#r-max');     if(rm) rm.textContent = ` /${max}`;
+  if(sky !== null){ const rs=$('#r-sky'); if(rs) rs.textContent = sky.toLocaleString ? sky.toLocaleString() : sky; }
 
-  // gauge ring
-  const ring = $('#sealRing');
-  if(ring) ring.style.strokeDashoffset = RINGC*(1 - refresh/max);
-
-  // seal HUD
-  $('#hud-sub').innerHTML = `refresh <b style="color:var(--sakura)">${refresh}</b>/${max} · found ${found}`;
-  $('#hud-elapsed').textContent = elapsed;
-  if(sky !== null){ $('#s-sky').textContent = sky; }
-
-  // status bar
-  $('#bar-sub').textContent    = `REFRESH ${refresh}/${max} · FOUND ${found}`;
-  $('#bar-pct').textContent    = pct+'%';
-  $('#bar-bar').style.width    = pct+'%';
-  $('#b-elapsed').textContent  = elapsed;
-  if(sky !== null) $('#b-sky').textContent = sky;
+  // status bar (shown when mode=bar)
+  const bs=$('#bar-sub');   if(bs) bs.textContent = `REFRESH ${refresh}/${max} · FOUND ${found}`;
+  const bp=$('#bar-pct');   if(bp) bp.textContent = pct+'%';
+  const bb=$('#bar-bar');   if(bb) bb.style.width = pct+'%';
+  const be=$('#b-elapsed'); if(be) be.textContent = elapsed;
+  if(sky !== null){ const bk=$('#b-sky'); if(bk) bk.textContent = sky; }
 
   setHUDState(state, task);
 }
 
 function setHUDState(state, task='Arunka'){
   const labels = {idle:'● idle', running:'● rolling', paused:'❚ paused', done:'✓ done', error:'✕ error'};
-  $('#hud-state').textContent  = labels[state] || '● '+state;
-  $('#hud-task').textContent   = task;
-  $('#bar-state').textContent  = '▮ '+(state.toUpperCase());
-  $('#bar-task').textContent   = task.toUpperCase();
-  $('#bar-task').dataset.t     = task.toUpperCase();
+  // bar state (live-bar in main window)
+  const bs=$('#bar-state'); if(bs){ bs.textContent='▮ '+state.toUpperCase(); }
+  const bt=$('#bar-task');  if(bt){ bt.textContent=task.toUpperCase(); bt.dataset.t=task.toUpperCase(); }
 
   // cluster status + gauge RPM
   const stMap = {idle:'IDLE', running:'RUNNING', paused:'PAUSED', done:'DONE', error:'ERROR'};
@@ -986,19 +959,37 @@ function init(){
     if(t.scroll_duration)   $('#t-scrolld').value= t.scroll_duration;
   });
 
+  // Load UI preferences from saved settings (overrides localStorage)
+  const ui = s.ui || {};
+  if(ui.hud_mode) setWinMode(ui.hud_mode);
+  if(ui.theme)    setTheme(ui.theme);
+
   // Check ADB status
   api('get_adb_status').then(r => window.arunka.adbStatus(r.connected, r.serial));
 }
 
-// ─── Boot ─────────────────────────────────────────────────────────────────────
+
+// ── HUD / Status Bar mode toggle ─────────────────────────────────────────────
+function setWinMode(m, save=false){
+  localStorage.setItem('arunka-winmode', m);
+  document.body.dataset.mode = m;
+  $$('[data-set]').forEach(x => x.classList.toggle('on', x.dataset.set === m));
+  const bar = document.getElementById('liveBar');
+  if(bar) bar.classList.toggle('visible', m === 'bar');
+  if(window.pywebview){
+    window.pywebview.api.set_hud_visible(m === 'seal');
+    if(save) api('save_settings', {ui: {hud_mode: m}});
+  }
+}
+$$('[data-set]').forEach(b => b.addEventListener('click', () => setWinMode(b.dataset.set, true)));
+
+// ─── Boot ────────────────────────────────────────────────────────────────────
 setTheme(localStorage.getItem('arunka-theme') || 'dark');
-setWinMode(localStorage.getItem('arunka-winmode') || 'seal');
+setWinMode(localStorage.getItem('arunka-winmode') || 'bar');
 show(localStorage.getItem('arunka-tab') || 'shop');
 paintGauge();
 
-// pywebview fires this event when the Python API is bound
 window.addEventListener('pywebviewready', init);
-// In dev (opening HTML in browser directly), init after a tick
 if(!window.pywebview) setTimeout(init, 100);
 </script>
 </body>

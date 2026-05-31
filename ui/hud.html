@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Arunka HUD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Chakra+Petch:wght@400;500;600;700&family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ── Design tokens (dark only — HUD is always dark) ── */
+:root{
+  --crimson:#f0588c; --crimson-br:#ff7daa; --crimson-dk:#b8315f;
+  --ice:#4fe3e0; --ice-2:#5cc8ff;
+  --sakura:#f7c9d8; --bone:#cdd6e2; --muted:#6f7d8e;
+  --gold:#e9b949; --jade:#46d6a0;
+  --line:rgba(150,180,215,.12); --line-2:rgba(150,180,215,.24);
+  --panel:#0a0e14;
+  --display:"Rajdhani",system-ui,sans-serif;
+  --tech:"Chakra Petch",monospace;
+  --brush:"Shippori Mincho",serif;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ width:278px; background:transparent; overflow:hidden; user-select:none; }
+
+/* ── Seal HUD card ── */
+.seal{
+  width:278px; display:flex; flex-direction:column; padding:15px;
+  background:linear-gradient(180deg,rgba(14,18,25,.98),rgba(6,9,13,.99));
+  border:1px solid var(--line-2);
+  box-shadow:0 18px 50px rgba(0,0,0,.65),0 0 0 1px rgba(240,88,140,.18);
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
+  cursor:grab; position:relative;
+}
+.seal:active{ cursor:grabbing; }
+
+/* collapse button */
+.collapse-btn{ position:absolute; top:10px; right:12px; font-family:var(--tech); font-size:13px;
+  color:var(--muted); cursor:pointer; background:none; border:none; padding:2px 4px; }
+.collapse-btn:hover{ color:var(--ice); }
+
+/* portrait ring */
+.portrait{ position:relative; width:74px; height:74px; flex:none; }
+.portrait .face{ position:absolute; inset:9px; border-radius:50%; overflow:hidden;
+  border:1.5px solid var(--crimson); }
+.portrait .face img{ width:148px; position:absolute; left:-32px; top:-6px; }
+.portrait .pulse{ position:absolute; inset:0; border-radius:50%;
+  box-shadow:0 0 0 0 rgba(255,125,170,.5); animation:pulse 2.4s infinite; }
+@keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(255,125,170,.45);}
+  70%{box-shadow:0 0 0 12px rgba(255,125,170,0);} 100%{box-shadow:0 0 0 0 rgba(255,125,170,0);} }
+.ring-svg{ position:absolute; inset:0; transform:rotate(-90deg); }
+.ring-trk{ fill:none; stroke:rgba(150,180,215,.14); }
+.ring-val{ fill:none; stroke:var(--crimson-br); stroke-linecap:round;
+  filter:drop-shadow(0 0 4px rgba(255,125,170,.7)); transition:stroke-dashoffset .4s; }
+
+/* text block */
+.top-row{ display:flex; gap:12px; align-items:center; }
+.info{ flex:1; min-width:0; }
+.state{ font-family:var(--tech); font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--crimson-br); margin-bottom:2px; }
+.task{ font-family:var(--display); font-weight:700; font-size:15px; color:#fff;
+  letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sub{ font-family:var(--tech); font-size:10px; color:var(--muted); margin-top:2px; }
+
+/* chips row */
+.chips{ display:flex; gap:5px; margin-top:11px; flex-wrap:wrap; }
+.chip{ display:inline-flex; align-items:center; gap:4px; font-family:var(--tech); font-size:11px;
+  padding:3px 8px; border:1px solid var(--line-2); background:rgba(8,11,16,.6); color:var(--bone);
+  clip-path:polygon(4px 0,100% 0,100% 100%,0 100%,0 4px); }
+.ico{ width:9px; height:9px; display:inline-block; border-radius:50%; }
+.ico.blue{ background:var(--ice-2); } .ico.gold{ background:var(--gold); }
+
+/* progress bar */
+.prog{ height:3px; background:rgba(150,180,215,.1); margin:10px 0 0;
+  clip-path:polygon(2px 0,100% 0,100% 100%,0 100%,0 2px); overflow:hidden; }
+.prog i{ display:block; height:100%; background:linear-gradient(90deg,var(--crimson),var(--crimson-br));
+  box-shadow:0 0 8px rgba(255,125,170,.5); width:0%; transition:width .4s; }
+
+/* controls */
+.controls{ display:flex; gap:6px; margin-top:11px; align-items:center; }
+.ctrlbtn{ width:28px; height:28px; border:1px solid var(--line-2); background:rgba(240,88,140,.08);
+  color:var(--crimson-br); display:grid; place-items:center; font-size:11px; cursor:pointer;
+  clip-path:polygon(4px 0,100% 0,100% 100%,0 100%,0 4px); flex:none; }
+.ctrlbtn:hover{ background:var(--crimson); color:#fff; }
+.ctrlbtn.stop:hover{ background:var(--crimson-dk); }
+.elapsed{ font-family:var(--tech); font-size:11px; color:var(--muted); margin-left:auto; }
+
+/* collapsed orb */
+body.collapsed .seal{
+  width:54px; height:54px; padding:0;
+  border-radius:50%; clip-path:none;
+  align-items:center; justify-content:center;
+  cursor:pointer;
+  box-shadow:0 0 20px rgba(240,88,140,.5);
+}
+body.collapsed .top-row,
+body.collapsed .chips,
+body.collapsed .prog,
+body.collapsed .controls,
+body.collapsed .collapse-btn{ display:none; }
+body.collapsed .orb-face{ display:grid; }
+.orb-face{ display:none; width:38px; height:38px; border-radius:50%; overflow:hidden;
+  border:1.5px solid var(--crimson); place-items:center; }
+.orb-face img{ width:80px; position:relative; left:-12px; top:-4px; }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="seal" id="seal">
+  <button class="collapse-btn" id="collapseBtn">▢</button>
+
+  <div class="top-row">
+    <div class="portrait">
+      <span class="pulse"></span>
+      <svg class="ring-svg" width="74" height="74" viewBox="0 0 74 74">
+        <circle class="ring-trk" cx="37" cy="37" r="32" stroke-width="4"/>
+        <circle class="ring-val" id="ringVal" cx="37" cy="37" r="32" stroke-width="4"
+          stroke-dasharray="201.1" stroke-dashoffset="201.1"/>
+      </svg>
+      <div class="face"><img src="assets/arunka.png" alt="Arunka" draggable="false"></div>
+    </div>
+    <div class="orb-face"><img src="assets/arunka.png" alt="" draggable="false"></div>
+    <div class="info">
+      <div class="state" id="hud-state">● idle</div>
+      <div class="task" id="hud-task">Arunka</div>
+      <div class="sub" id="hud-sub">ready</div>
+    </div>
+  </div>
+
+  <div class="prog"><i id="hud-bar"></i></div>
+
+  <div class="chips">
+    <span class="chip"><i class="ico blue"></i><span id="hud-sky">—</span></span>
+    <span class="chip"><i class="ico gold"></i><span id="hud-found">0</span> found</span>
+  </div>
+
+  <div class="controls">
+    <div class="ctrlbtn" id="btn-pause" title="Pause / Resume">❚❚</div>
+    <div class="ctrlbtn stop" id="btn-stop" title="Stop">■</div>
+    <span class="elapsed" id="hud-elapsed">—</span>
+  </div>
+</div>
+
+<script>
+const RINGC = 201.1;
+let _shopRunning = false;
+let _shopPaused  = false;
+
+/* ── drag (moves the OS window via API) ─────────────────────────── */
+let dragging = false, lastX, lastY;
+const seal = document.getElementById('seal');
+
+seal.addEventListener('mousedown', e => {
+  if(['btn-pause','btn-stop','collapseBtn'].includes(e.target.id)) return;
+  dragging = true; lastX = e.screenX; lastY = e.screenY; e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if(!dragging) return;
+  const dx = e.screenX - lastX, dy = e.screenY - lastY;
+  lastX = e.screenX; lastY = e.screenY;
+  if(window.pywebview) window.pywebview.api.move_hud_by(dx, dy);
+});
+document.addEventListener('mouseup', () => { dragging = false; });
+
+/* ── collapse ────────────────────────────────────────────────────── */
+const collapseBtn = document.getElementById('collapseBtn');
+collapseBtn.addEventListener('click', () => {
+  const collapsed = document.body.classList.toggle('collapsed');
+  if(window.pywebview) window.pywebview.api.resize_hud(collapsed ? 54 : 278, collapsed ? 54 : 220);
+});
+seal.addEventListener('click', e => {
+  if(!document.body.classList.contains('collapsed')) return;
+  document.body.classList.remove('collapsed');
+  if(window.pywebview) window.pywebview.api.resize_hud(278, 220);
+});
+
+/* ── controls ────────────────────────────────────────────────────── */
+document.getElementById('btn-pause').addEventListener('click', () => {
+  if(_shopRunning && window.pywebview) window.pywebview.api.pause_shop();
+});
+document.getElementById('btn-stop').addEventListener('click', () => {
+  if(window.pywebview) {
+    if(_shopRunning) window.pywebview.api.stop_shop();
+  }
+});
+
+/* ── helpers ─────────────────────────────────────────────────────── */
+function setState(state, task) {
+  const labels = {idle:'● idle', running:'● rolling', paused:'❚ paused', done:'✓ done', error:'✕ error'};
+  document.getElementById('hud-state').textContent = labels[state] || '● '+state;
+  document.getElementById('hud-task').textContent  = task || 'Arunka';
+}
+
+/* ── window.arunka callbacks (Python → HUD) ──────────────────────── */
+window.arunka = {
+  log() {},  /* logs stay in the main window terminal */
+
+  shopProgress(data) {
+    _shopRunning = true;
+    const { refresh=0, found=0, elapsed='00:00', max=100, sky=null } = data;
+    const pct = Math.round(refresh / max * 100);
+    document.getElementById('hud-sub').innerHTML =
+      `refresh <b style="color:var(--sakura)">${refresh}</b>/${max} · found ${found}`;
+    document.getElementById('hud-found').textContent = found;
+    document.getElementById('hud-elapsed').textContent = elapsed;
+    document.getElementById('hud-bar').style.width = pct + '%';
+    document.getElementById('ringVal').style.strokeDashoffset = RINGC * (1 - refresh/max);
+    if(sky !== null) document.getElementById('hud-sky').textContent =
+      typeof sky === 'number' ? sky.toLocaleString() : sky;
+  },
+
+  shopState(state) {
+    if(state === 'running') { _shopRunning=true; _shopPaused=false; }
+    if(state === 'paused')  { _shopPaused=true; }
+    if(state === 'done' || state === 'error') { _shopRunning=false; _shopPaused=false; }
+    setState(state, 'Secret Shop');
+    const p = document.getElementById('btn-pause');
+    p.textContent = _shopPaused ? '▶' : '❚❚';
+  },
+
+  dailiesState(state) {
+    _shopRunning = (state === 'running');
+    setState(state, 'Dailies');
+  },
+
+  adbStatus() {},
+  templateStatus() {},
+};
+</script>
+</body>
+</html>
