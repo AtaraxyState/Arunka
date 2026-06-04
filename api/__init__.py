@@ -34,6 +34,7 @@ class ArunkaAPI:
         self._shop_thread  = None
         self._shop_stop    = threading.Event()
         self._shop_pause   = threading.Event()
+        self._shop_resume  = threading.Event()  # set for one tick when unpaused
         self._shop_refresh = 0
         self._shop_found   = 0
         self._shop_t0      = 0.0
@@ -265,10 +266,13 @@ class ArunkaAPI:
 
     def pause_shop(self):
         if self._shop_pause.is_set():
+            # Resuming — signal the task to restart the current roll
+            self._shop_resume.set()
             self._shop_pause.clear()
             self._js('window.arunka&&window.arunka.shopState("running")')
             return {"state": "running"}
         else:
+            self._shop_resume.clear()
             self._shop_pause.set()
             self._js('window.arunka&&window.arunka.shopState("paused")')
             return {"state": "paused"}
@@ -338,6 +342,13 @@ class ArunkaAPI:
                 return _orig_start_roll(roll_n)
             recorder.start_roll = _counted_start_roll
 
+            def restart_fn():
+                """Return True (once) when the user just resumed from pause."""
+                if self._shop_resume.is_set():
+                    self._shop_resume.clear()
+                    return True
+                return False
+
             self._js('window.arunka&&window.arunka.shopState("running")')
             hwnd = find_window("")
             secret_shop.run(
@@ -345,6 +356,8 @@ class ArunkaAPI:
                 lambda: capture_window(hwnd),
                 should_run=should_run,
                 recorder=recorder,
+                step_fn=self._push_shop_step,
+                restart_fn=restart_fn,
             )
 
             recorder.close("done" if not self._shop_stop.is_set() else "stopped")
@@ -383,6 +396,10 @@ class ArunkaAPI:
             return candidates[0] if candidates else None
         except Exception:
             return None
+
+    def _push_shop_step(self, step: str):
+        """Push the current roll phase to the UI gauge."""
+        self._js(f'window.arunka&&window.arunka.shopStep({json.dumps(step)})')
 
     def _push_shop_progress(self):
         elapsed = int(time.time() - self._shop_t0)

@@ -18,6 +18,7 @@ secret_shop:
   max_item_cost: 180
   refresh_limit: 100
 timing:
+  after_purchase_delay: 1.2
   click_delay: 0.1
   loading_timeout: 10.0
   navigation_delay: 0.1

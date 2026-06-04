@@ -414,6 +414,17 @@ let _currentSteps = [];
 const ARC = 197.9, RINGC = 219.9;
 let _rpm = 0, _rpmTarget = 0, _raf = null;
 
+// Step → gauge position (0–1) + centre label
+const STEP_GAUGE = {
+  navigate: { rpm: 0.05, label: 'NAV'    },
+  scan_top: { rpm: 0.20, label: 'SCAN ↑' },
+  scroll_1: { rpm: 0.38, label: '↓↓'     },
+  scan_mid: { rpm: 0.55, label: 'SCAN'   },
+  scroll_2: { rpm: 0.70, label: '↓↓'     },
+  scan_bot: { rpm: 0.82, label: 'SCAN ↓' },
+  refresh:  { rpm: 0.95, label: 'REFRESH'},
+};
+
 // ── Petals ───────────────────────────────────────────────────────────────────
 (function(){
   const f = $('#petals'); let html = '';
@@ -559,8 +570,10 @@ function setHUDState(state, task='Arunka'){
   // cluster status + gauge RPM
   const stMap = {idle:'IDLE', running:'RUNNING', paused:'PAUSED', done:'DONE', error:'ERROR'};
   const stEl = $('#r-status'); if(stEl) stEl.textContent = stMap[state]||state.toUpperCase();
-  const gst  = $('#g-st');     if(gst)  gst.textContent  = state==='running'?'ROLL':state==='done'?'DONE':'READY';
-  _rpmTarget = state==='running' ? 0.65 + Math.random()*0.25 : 0;
+  const gst  = $('#g-st');
+  if(state === 'done')        { if(gst) gst.textContent = 'DONE';  _rpmTarget = 0; }
+  else if(state !== 'running'){ if(gst) gst.textContent = 'READY'; _rpmTarget = 0; }
+  // When running, the gauge is driven step-by-step via shopStep() — don't override.
 }
 
 // ─── Python → JS callbacks (window.arunka) ────────────────────────────────────
@@ -587,6 +600,12 @@ window.arunka = {
   shopProgress(data){
     _shopRunning = true;
     syncHUD({...data, state: _shopPaused ? 'paused' : 'running', task:'Secret Shop'});
+  },
+
+  shopStep(step){
+    const s = STEP_GAUGE[step]; if(!s) return;
+    _rpmTarget = s.rpm;
+    const gst = $('#g-st'); if(gst) gst.textContent = s.label;
   },
 
   shopState(state){
