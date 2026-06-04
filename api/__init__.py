@@ -35,9 +35,13 @@ class ArunkaAPI:
         self._shop_stop    = threading.Event()
         self._shop_pause   = threading.Event()
         self._shop_resume  = threading.Event()  # set for one tick when unpaused
-        self._shop_refresh = 0
-        self._shop_found   = 0
-        self._shop_t0      = 0.0
+        self._shop_refresh  = 0
+        self._shop_found    = 0
+        self._shop_mystic   = 0
+        self._shop_covenant = 0
+        self._shop_t0          = 0.0
+        self._shop_paused_at   = 0.0  # time.time() when last paused, 0 = not paused
+        self._shop_pause_total = 0.0  # cumulative seconds spent paused
         self._shop_running = False   # True while task thread is active
         self._shop_sky     = None    # last known skystone count
 
@@ -110,9 +114,13 @@ class ArunkaAPI:
         tag = tag_map.get(name, name)
         msg  = record["message"]
 
-        # Detect successful purchases to increment found counter
+        # Detect successful purchases and update per-item counters
         if msg.startswith("Bought:") and self._shop_running:
             self._shop_found += 1
+            if "mystic" in msg:
+                self._shop_mystic += 1
+            elif "covenant" in msg:
+                self._shop_covenant += 1
             self._push_shop_progress()
 
         code = (
@@ -256,9 +264,13 @@ class ArunkaAPI:
 
         self._shop_stop.clear()
         self._shop_pause.clear()
-        self._shop_refresh = 0
-        self._shop_found   = 0
-        self._shop_t0      = time.time()
+        self._shop_refresh     = 0
+        self._shop_found       = 0
+        self._shop_mystic      = 0
+        self._shop_covenant    = 0
+        self._shop_t0          = time.time()
+        self._shop_paused_at   = 0.0
+        self._shop_pause_total = 0.0
 
         self._shop_thread = threading.Thread(target=self._run_shop, daemon=True)
         self._shop_thread.start()
@@ -266,12 +278,16 @@ class ArunkaAPI:
 
     def pause_shop(self):
         if self._shop_pause.is_set():
-            # Resuming — signal the task to restart the current roll
+            # Resuming — accumulate the time spent paused
+            if self._shop_paused_at > 0:
+                self._shop_pause_total += time.time() - self._shop_paused_at
+                self._shop_paused_at = 0.0
             self._shop_resume.set()
             self._shop_pause.clear()
             self._js('window.arunka&&window.arunka.shopState("running")')
             return {"state": "running"}
         else:
+            self._shop_paused_at = time.time()
             self._shop_resume.clear()
             self._shop_pause.set()
             self._js('window.arunka&&window.arunka.shopState("paused")')
@@ -306,22 +322,10 @@ class ArunkaAPI:
                 _time.sleep(0.2)
             return not self._shop_stop.is_set()
 
-        # Background timer: push elapsed + skystone every second
+        # Background timer: push elapsed every second (sky is now event-based)
         def _timer():
-            sky_tick = 0
             while self._shop_running and not self._shop_stop.is_set():
                 self._push_shop_progress()
-                # Read skystone count from screen every 10 s (expensive)
-                sky_tick += 1
-                if sky_tick >= 10:
-                    sky_tick = 0
-                    try:
-                        screen = capture_window(find_window(""))
-                        sky = self._read_skystone(screen)
-                        if sky is not None:
-                            self._shop_sky = sky
-                    except Exception:
-                        pass
                 _time.sleep(1.0)
 
         timer = threading.Thread(target=_timer, daemon=True)
@@ -342,10 +346,27 @@ class ArunkaAPI:
                 return _orig_start_roll(roll_n)
             recorder.start_roll = _counted_start_roll
 
+            def sky_fn():
+                """Full OCR read — used at start and on resume from pause."""
+                try:
+                    sky = self._read_skystone(capture_window(find_window("")))
+                    if sky is not None:
+                        self._shop_sky = sky
+                        self._push_shop_progress()
+                except Exception:
+                    pass
+
+            def sky_decrement_fn():
+                """Fast path — subtract 3 per refresh without OCR."""
+                if self._shop_sky is not None:
+                    self._shop_sky -= 3
+                    self._push_shop_progress()
+
             def restart_fn():
                 """Return True (once) when the user just resumed from pause."""
                 if self._shop_resume.is_set():
                     self._shop_resume.clear()
+                    sky_fn()   # re-read after pause in case skystones changed
                     return True
                 return False
 
@@ -358,9 +379,14 @@ class ArunkaAPI:
                 recorder=recorder,
                 step_fn=self._push_shop_step,
                 restart_fn=restart_fn,
+                sky_fn=sky_fn,
+                sky_decrement_fn=sky_decrement_fn,
             )
 
-            recorder.close("done" if not self._shop_stop.is_set() else "stopped")
+            recorder.close(
+                "done" if not self._shop_stop.is_set() else "stopped",
+                elapsed_seconds=self._active_elapsed(),
+            )
             recorder = None
             self._js('window.arunka&&window.arunka.shopState("done")')
 
@@ -368,7 +394,7 @@ class ArunkaAPI:
             logger.error(f"Shop task error: {e}")
             if recorder:
                 try:
-                    recorder.close("error")
+                    recorder.close("error", elapsed_seconds=self._active_elapsed())
                 except Exception:
                     pass
             self._js('window.arunka&&window.arunka.shopState("error")')
@@ -376,22 +402,38 @@ class ArunkaAPI:
             self._shop_running = False
 
     def _read_skystone(self, screen) -> "int | None":
-        """Try to OCR the skystone count from the game screenshot top bar."""
+        """OCR the skystone count from the game top bar."""
         try:
             import pytesseract
             import cv2
-            h, w = screen.shape[:2]
-            # Crop: right-centre of top bar where skystones appear
-            roi = screen[0:int(h * 0.09), int(w * 0.48):int(w * 0.78)]
-            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-            _, thresh = cv2.threshold(gray, 190, 255, cv2.THRESH_BINARY)
-            text = pytesseract.image_to_string(
-                thresh, config="--psm 7 -c tessedit_char_whitelist=0123456789,"
-            )
             import re
+            # Point to default Tesseract install location on Windows
+            pytesseract.pytesseract.tesseract_cmd = (
+                r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+            )
+            h, w = screen.shape[:2]
+
+            # Skystone number: ~67–80 % of width, top ~7 % of height
+            roi = screen[0:int(h * 0.07), int(w * 0.67):int(w * 0.80)]
+
+            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+
+            # Scale up 3× — improves Tesseract accuracy on small game text
+            large = cv2.resize(gray, None, fx=3, fy=3,
+                               interpolation=cv2.INTER_CUBIC)
+
+            # White text on dark background → invert so text is black on white
+            inv = cv2.bitwise_not(large)
+            _, thresh = cv2.threshold(inv, 50, 255, cv2.THRESH_BINARY)
+
+            # PSM 6 = uniform block; digits + comma only
+            text = pytesseract.image_to_string(
+                thresh, config="--psm 6 -c tessedit_char_whitelist=0123456789,"
+            )
+
             nums = [int(n.replace(",", ""))
                     for n in re.findall(r"\d[\d,]+", text)]
-            # Skystones: 4–6 digits; gold is typically 7–10
+            # Skystones are 3–6 digits; gold is 7–10
             candidates = [n for n in nums if 100 <= n <= 999_999]
             return candidates[0] if candidates else None
         except Exception:
@@ -401,15 +443,46 @@ class ArunkaAPI:
         """Push the current roll phase to the UI gauge."""
         self._js(f'window.arunka&&window.arunka.shopStep({json.dumps(step)})')
 
+    @staticmethod
+    def _fmt_duration(seconds: int) -> str:
+        """0:SS  /  M:SS  /  H:MM:SS depending on magnitude."""
+        s = max(0, int(seconds))
+        if s < 3600:
+            m, s = divmod(s, 60)
+            return f"{m}:{s:02d}"
+        h, rem = divmod(s, 3600)
+        m, s   = divmod(rem, 60)
+        return f"{h}:{m:02d}:{s:02d}"
+
+    def _active_elapsed(self) -> int:
+        """Seconds elapsed since shop start, excluding time spent paused."""
+        paused = self._shop_pause_total
+        if self._shop_paused_at > 0:
+            paused += time.time() - self._shop_paused_at
+        return max(0, int(time.time() - self._shop_t0 - paused))
+
     def _push_shop_progress(self):
-        elapsed = int(time.time() - self._shop_t0)
-        mm, ss  = divmod(elapsed, 60)
+        elapsed_sec = self._active_elapsed()
+        elapsed_str = self._fmt_duration(elapsed_sec)
+
+        # ETA: extrapolate from time-per-refresh × refreshes remaining
+        refresh = self._shop_refresh
+        max_ref = cfg.get("secret_shop", {}).get("refresh_limit", 100)
+        if refresh > 0 and elapsed_sec > 0:
+            eta_sec = int(elapsed_sec / refresh * max(0, max_ref - refresh))
+            eta_str = self._fmt_duration(eta_sec)
+        else:
+            eta_str = None
+
         data = json.dumps({
-            "refresh": self._shop_refresh,
-            "found":   self._shop_found,
-            "elapsed": f"{mm:02d}:{ss:02d}",
-            "max":     cfg.get("secret_shop", {}).get("refresh_limit", 100),
-            "sky":     self._shop_sky,
+            "refresh":  refresh,
+            "found":    self._shop_found,
+            "mystic":   self._shop_mystic,
+            "covenant": self._shop_covenant,
+            "elapsed":  elapsed_str,
+            "eta":      eta_str,
+            "max":      max_ref,
+            "sky":      self._shop_sky,
         })
         self._js(f'window.arunka&&window.arunka.shopProgress({data})')
 

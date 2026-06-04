@@ -172,7 +172,7 @@ class HistoryRecorder:
         except Exception as e:
             logger.error(f"finish_roll failed: {e}")
 
-    def close(self, status: str = "done") -> None:
+    def close(self, status: str = "done", elapsed_seconds: int = None) -> None:
         if not self.enabled:
             return
         try:
@@ -180,8 +180,19 @@ class HistoryRecorder:
             if self._roll is not None:
                 self._run["rolls"].append(self._roll)
                 self._roll = None
-            self._run["ended"] = datetime.datetime.now().isoformat(timespec="seconds")
+            now = datetime.datetime.now()
+            self._run["ended"] = now.isoformat(timespec="seconds")
             self._run["status"] = status
+            # Duration: use the caller-supplied active elapsed (excludes pauses)
+            # or fall back to wall-clock diff from started/ended.
+            if elapsed_seconds is not None:
+                self._run["duration_seconds"] = int(elapsed_seconds)
+            else:
+                try:
+                    started = datetime.datetime.fromisoformat(self._run["started"])
+                    self._run["duration_seconds"] = int((now - started).total_seconds())
+                except Exception:
+                    self._run["duration_seconds"] = None
             self._flush_run()
             self._update_index()
             logger.info(f"History run {self.run_id} closed ({status})")
@@ -214,6 +225,7 @@ def _summarize_run(run: dict) -> dict:
         "started": run.get("started"),
         "ended": run.get("ended"),
         "status": run.get("status"),
+        "duration_seconds": run.get("duration_seconds"),
         "rolls": len(rolls),
         "found": sum(r.get("found", 0) for r in rolls),
         "bought": sum(r.get("bought", 0) for r in rolls),

@@ -82,7 +82,7 @@ html,body{ width:278px; background:transparent; overflow:hidden; user-select:non
   clip-path:polygon(4px 0,100% 0,100% 100%,0 100%,0 4px); flex:none; }
 .ctrlbtn:hover{ background:var(--crimson); color:#fff; }
 .ctrlbtn.stop:hover{ background:var(--crimson-dk); }
-.elapsed{ font-family:var(--tech); font-size:11px; color:var(--muted); margin-left:auto; }
+.elapsed{ font-family:var(--tech); font-size:10px; color:var(--muted); margin-left:auto; white-space:nowrap; }
 
 /* collapsed orb */
 body.collapsed .seal{
@@ -196,12 +196,13 @@ window.arunka = {
 
   shopProgress(data) {
     _shopRunning = true;
-    const { refresh=0, found=0, elapsed='00:00', max=100, sky=null } = data;
+    const { refresh=0, found=0, elapsed='00:00', eta=null, max=100, sky=null } = data;
     const pct = Math.round(refresh / max * 100);
+    const timeStr = eta ? `${elapsed} / ~${eta}` : elapsed;
     document.getElementById('hud-sub').innerHTML =
       `refresh <b style="color:var(--sakura)">${refresh}</b>/${max} · found ${found}`;
     document.getElementById('hud-found').textContent = found;
-    document.getElementById('hud-elapsed').textContent = elapsed;
+    document.getElementById('hud-elapsed').textContent = timeStr;
     document.getElementById('hud-bar').style.width = pct + '%';
     document.getElementById('ringVal').style.strokeDashoffset = RINGC * (1 - refresh/max);
     if(sky !== null) document.getElementById('hud-sky').textContent =

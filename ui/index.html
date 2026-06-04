@@ -206,11 +206,12 @@
       </div>
     </div>
     <div class="readouts">
-      <div class="cell"><div class="k">Status</div><div class="v" id="r-status">IDLE</div></div>
+
       <div class="cell"><div class="k">Refreshes</div><div class="v pink"><span id="r-refresh">0</span><span style="font-size:13px;color:var(--muted)" id="r-max"> /100</span></div></div>
       <div class="cell"><div class="k">Skystones</div><div class="v ice" id="r-sky">—</div></div>
-      <div class="cell"><div class="k">Items found</div><div class="v gold" id="r-found">0</div></div>
-      <div class="cell"><div class="k">Elapsed</div><div class="v" id="r-elapsed">00:00</div></div>
+      <div class="cell"><div class="k">Mystic medals</div><div class="v gold" id="r-mystic">0</div></div>
+      <div class="cell"><div class="k">Bookmarks</div><div class="v gold" id="r-covenant">0</div></div>
+      <div class="cell"><div class="k">Elapsed / ETA</div><div class="v" id="r-elapsed">00:00</div></div>
     </div>
   </div>
 
@@ -218,7 +219,7 @@
     <div class="col panel">
       <div class="cardhd">Rules</div>
       <div class="pad">
-        <div class="field"><label>Max refreshes</label><div class="stepper"><button data-step="-1" data-t="maxref">−</button><span class="v" id="maxref">100</span><button data-step="1" data-t="maxref">+</button></div></div>
+        <div class="field"><label>Max refreshes</label><div class="stepper"><button data-step="-1" data-t="maxref">−</button><span class="v" id="maxref" contenteditable="true" inputmode="numeric" spellcheck="false">100</span><button data-step="1" data-t="maxref">+</button></div></div>
         <div class="check"><div class="box on" id="chk-bookmarks">✓</div><label>Buy Covenant Bookmarks</label></div>
         <div class="check"><div class="box on" id="chk-mystic">✓</div><label>Buy Mystic Medals</label></div>
         <div class="check"><div class="box on" id="chk-history">✓</div><label>Record roll history</label></div>
@@ -484,9 +485,31 @@ $$('[data-theme-set]').forEach(b => b.addEventListener('click', () => setTheme(b
 $$('.stepper button[data-step]').forEach(b => b.addEventListener('click', () => {
   const el = document.getElementById(b.dataset.t);
   let v = parseInt(el.textContent.replace(/,/g,'')) + (+b.dataset.step);
-  v = Math.max(0, v);
+  v = Math.max(1, v);
   el.textContent = v.toLocaleString();
 }));
+
+// Editable stepper spans — sanitize on blur, select-all on focus
+$$('.stepper span.v[contenteditable]').forEach(el => {
+  el.addEventListener('focus', () => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+  el.addEventListener('blur', () => {
+    let v = parseInt(el.textContent.replace(/,/g,''));
+    if (isNaN(v) || v < 1) v = 1;
+    el.textContent = v.toLocaleString();
+  });
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    // Allow only digits, backspace, delete, arrows
+    if (!/^[0-9]$/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(e.key))
+      e.preventDefault();
+  });
+});
 
 // ── Checkboxes ───────────────────────────────────────────────────────────────
 $$('.check .box').forEach(b => b.addEventListener('click', () => {
@@ -541,21 +564,24 @@ gaugeLoop();
 
 // ── HUD sync ──────────────────────────────────────────────────────────────────
 function syncHUD(data){
-  const { refresh=0, found=0, elapsed='00:00', max=100, state='idle', task='Arunka', sky=null } = data;
+  const { refresh=0, found=0, mystic=0, covenant=0, elapsed='00:00', eta=null, max=100, state='idle', task='Arunka', sky=null } = data;
   const pct = Math.round(refresh/max*100);
+  const timeStr = eta ? `${elapsed} / ~${eta}` : elapsed;
 
   // tachometer cluster (always visible in main window)
   const rr=$('#r-refresh'); if(rr) rr.textContent = refresh;
-  const rf=$('#r-found');   if(rf) rf.textContent = found;
-  const re=$('#r-elapsed'); if(re) re.textContent = elapsed;
+  const rf=$('#r-found');     if(rf) rf.textContent = found;
+  const rmy=$('#r-mystic');   if(rmy) rmy.textContent = mystic;
+  const rcv=$('#r-covenant'); if(rcv) rcv.textContent = covenant;
+  const re=$('#r-elapsed'); if(re) re.textContent = timeStr;
   const rm=$('#r-max');     if(rm) rm.textContent = ` /${max}`;
   if(sky !== null){ const rs=$('#r-sky'); if(rs) rs.textContent = sky.toLocaleString ? sky.toLocaleString() : sky; }
 
   // status bar (shown when mode=bar)
-  const bs=$('#bar-sub');   if(bs) bs.textContent = `REFRESH ${refresh}/${max} · FOUND ${found}`;
+  const bs=$('#bar-sub');   if(bs) bs.textContent = `REFRESH ${refresh}/${max} · ✦${mystic} ☆${covenant}`;
   const bp=$('#bar-pct');   if(bp) bp.textContent = pct+'%';
   const bb=$('#bar-bar');   if(bb) bb.style.width = pct+'%';
-  const be=$('#b-elapsed'); if(be) be.textContent = elapsed;
+  const be=$('#b-elapsed'); if(be) be.textContent = timeStr;
   if(sky !== null){ const bk=$('#b-sky'); if(bk) bk.textContent = sky; }
 
   setHUDState(state, task);
@@ -816,7 +842,7 @@ function saveRoute(){
 // ─── Secret Shop ─────────────────────────────────────────────────────────────
 function getShopConfig(){
   return {
-    refresh_limit:    parseInt($('#maxref').textContent) || 100,
+    refresh_limit:    parseInt($('#maxref').textContent.replace(/,/g,'')) || 100,
     buy_bookmarks:    $('#chk-bookmarks').classList.contains('on'),
     buy_mystic_medals:$('#chk-mystic').classList.contains('on'),
     click_delay:      parseFloat($('#t-click').value)||0.15,
@@ -834,7 +860,7 @@ function toggleShop(){
 function resetShop(){ api('stop_shop').then(() => { _shopRunning=false; _shopPaused=false; syncHUD({state:'idle'}); window.arunka.shopState('idle'); }); }
 
 function saveShopSettings(){
-  api('save_settings',{ secret_shop:{ refresh_limit:parseInt($('#maxref').textContent)||100,
+  api('save_settings',{ secret_shop:{ refresh_limit:parseInt($('#maxref').textContent.replace(/,/g,''))||100,
     buy_bookmarks:$('#chk-bookmarks').classList.contains('on'), buy_mystic_medals:$('#chk-mystic').classList.contains('on'),
     enabled:$('#chk-history').classList.contains('on') },
     timing:{ click_delay:parseFloat($('#t-click').value), navigation_delay:parseFloat($('#t-nav').value),
@@ -871,7 +897,8 @@ function loadHistory(){
       const el = document.createElement('div');
       el.className='runitem';
       const label = (run.id||'').replace('_',' · ').replace(/-/g,':');
-      el.innerHTML=`<div><div class="t">${label}</div><div class="s">${run.rolls||0} rolls · ${run.bought||0} bought</div></div><span class="arrow">▸</span>`;
+      const dur = run.duration_seconds != null ? ` · ${fmtDur(run.duration_seconds)}` : '';
+      el.innerHTML=`<div><div class="t">${label}</div><div class="s">${run.rolls||0} rolls · ${run.bought||0} bought${dur}</div></div><span class="arrow">▸</span>`;
       el.addEventListener('click', () => selectRun(run));
       list.appendChild(el);
     });
@@ -948,6 +975,18 @@ function toggleAutoscroll(){
   box.textContent = _autoscroll ? '✓' : '';
 }
 
+// ─── Duration formatter ───────────────────────────────────────────────────────
+function fmtDur(s) {
+  if (s == null) return '—';
+  s = Math.max(0, Math.floor(s));
+  if (s < 3600) {
+    const m = Math.floor(s / 60), ss = s % 60;
+    return `${m}:${String(ss).padStart(2, '0')}`;
+  }
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+}
+
 // ─── pywebview API helper ─────────────────────────────────────────────────────
 function api(method, ...args){
   if(window.pywebview && window.pywebview.api){
@@ -1001,6 +1040,21 @@ function setWinMode(m, save=false){
   }
 }
 $$('[data-set]').forEach(b => b.addEventListener('click', () => setWinMode(b.dataset.set, true)));
+
+// ─── History keyboard navigation ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Only active when History tab is visible and no input is focused
+  const active = document.querySelector('.view.on');
+  if (!active || active.id !== 'v-history') return;
+  if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+
+  switch(e.key) {
+    case 'ArrowLeft':  e.preventDefault(); prevRoll();             break;
+    case 'ArrowRight': e.preventDefault(); nextRoll();             break;
+    case 'ArrowUp':    e.preventDefault(); switchHalf('top');      break;
+    case 'ArrowDown':  e.preventDefault(); switchHalf('bottom');   break;
+  }
+});
 
 // ─── Boot ────────────────────────────────────────────────────────────────────
 setTheme(localStorage.getItem('arunka-theme') || 'dark');

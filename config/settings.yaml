@@ -16,7 +16,7 @@ secret_shop:
   enabled: true
   item_threshold: 0.88
   max_item_cost: 180
-  refresh_limit: 100
+  refresh_limit: 2000
 timing:
   after_purchase_delay: 1.2
   click_delay: 0.1

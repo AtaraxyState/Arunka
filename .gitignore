@@ -24,6 +24,13 @@ env/
 # History data (large, user-local screenshots)
 history/
 
+# Runtime logs
+logs/
+*.log
+
+# Debug output images
+debug_sky_*.png
+
 # OS
 .DS_Store
 Thumbs.db
