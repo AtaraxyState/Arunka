@@ -115,6 +115,8 @@ class HistoryRecorder:
                 "detections": {"top": [], "bottom": []},
                 "found": 0,
                 "bought": 0,
+                "mystic_bought": 0,
+                "covenant_bought": 0,
                 "outcome": None,
                 "warnings": [],
             }
@@ -148,6 +150,10 @@ class HistoryRecorder:
             self._roll["found"] += 1
             if status == "bought":
                 self._roll["bought"] += 1
+                if "mystic" in template:
+                    self._roll["mystic_bought"] += 1
+                elif "covenant" in template:
+                    self._roll["covenant_bought"] += 1
         except Exception as e:
             logger.error(f"record_detection failed: {e}")
 
@@ -229,6 +235,8 @@ def _summarize_run(run: dict) -> dict:
         "rolls": len(rolls),
         "found": sum(r.get("found", 0) for r in rolls),
         "bought": sum(r.get("bought", 0) for r in rolls),
+        "mystic_bought": sum(r.get("mystic_bought", 0) for r in rolls),
+        "covenant_bought": sum(r.get("covenant_bought", 0) for r in rolls),
     }
 
 
@@ -350,13 +358,15 @@ def export_csv(run_id: str) -> Path | None:
         out = history_root() / run_id / f"{run_id}_summary.csv"
         with open(out, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["roll", "started", "found", "bought", "outcome", "warnings"])
+            w.writerow(["roll", "started", "found", "bought", "mystic_bought", "covenant_bought", "outcome", "warnings"])
             for r in run.get("rolls", []):
                 w.writerow([
                     r.get("n"),
                     r.get("started", ""),
                     r.get("found", 0),
                     r.get("bought", 0),
+                    r.get("mystic_bought", 0),
+                    r.get("covenant_bought", 0),
                     r.get("outcome", ""),
                     "; ".join(r.get("warnings", [])),
                 ])

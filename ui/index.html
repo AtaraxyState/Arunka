@@ -898,7 +898,11 @@ function loadHistory(){
       el.className='runitem';
       const label = (run.id||'').replace('_',' · ').replace(/-/g,':');
       const dur = run.duration_seconds != null ? ` · ${fmtDur(run.duration_seconds)}` : '';
-      el.innerHTML=`<div><div class="t">${label}</div><div class="s">${run.rolls||0} rolls · ${run.bought||0} bought${dur}</div></div><span class="arrow">▸</span>`;
+      const mystic   = run.mystic_bought   || 0;
+      const covenant = run.covenant_bought || 0;
+      const items = mystic || covenant
+        ? ` (✦${mystic} ☆${covenant})`  : '';
+      el.innerHTML=`<div><div class="t">${label}</div><div class="s">${run.rolls||0} rolls · ${run.bought||0} bought${items}${dur}</div></div><span class="arrow">▸</span>`;
       el.addEventListener('click', () => selectRun(run));
       list.appendChild(el);
     });
@@ -933,7 +937,12 @@ function showRoll(idx){
   });
   if(roll){
     const out = roll.outcome||'—';  // roll.n is the roll number
-    $('#roll-outcome-text').innerHTML=`<span style="color:var(--gold)">${out}</span>&nbsp; <span style="color:var(--muted)">Found:</span> ${roll.found||0} &nbsp;<span style="color:var(--muted)">Bought:</span> ${roll.bought||0}`;
+    const mystic   = roll.mystic_bought   || 0;
+    const covenant = roll.covenant_bought || 0;
+    const itemBreak = (mystic || covenant)
+      ? ` &nbsp;<span style="color:var(--muted)">✦ Mystic:</span> ${mystic} &nbsp;<span style="color:var(--muted)">☆ Covenant:</span> ${covenant}`
+      : '';
+    $('#roll-outcome-text').innerHTML=`<span style="color:var(--gold)">${out}</span>&nbsp; <span style="color:var(--muted)">Found:</span> ${roll.found||0} &nbsp;<span style="color:var(--muted)">Bought:</span> ${roll.bought||0}${itemBreak}`;
     $('#roll-outcome').style.display='block';
   }
 }

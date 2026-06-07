@@ -16,7 +16,7 @@ secret_shop:
   enabled: true
   item_threshold: 0.88
   max_item_cost: 180
-  refresh_limit: 2000
+  refresh_limit: 1600
 timing:
   after_purchase_delay: 1.2
   click_delay: 0.1
@@ -26,6 +26,6 @@ timing:
   scroll_duration: 0.3
 ui:
   hud_mode: bar
-  theme: light
+  theme: dark
 vision:
   fast_scale_first: null
